@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: notes
+    // Document ID: auto-generated
+    // Fields:
+    //   - type: string (required, 'text' or 'audio')
+    //   - content: string (optional, 1-1000 chars)
+    //   - audioUrl: string (optional, URL)
+    //   - location: map (required, {lat: number, lng: number})
+    //   - authorId: string (required, immutable)
+    //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (optional)
+    //   - color: string (optional, hex color)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "DarioDCruz@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidNote(data) {
+      return hasRequiredFields(['type', 'location', 'authorId', 'createdAt']) &&
+             hasOnlyAllowedFields(['type', 'content', 'audioUrl', 'location', 'authorId', 'createdAt', 'updatedAt', 'color']) &&
+             data.type in ['text', 'audio'] &&
+             (data.type == 'text' ? (data.content is string && data.content.size() > 0 && data.content.size() <= 1000) : true) &&
+             (data.type == 'audio' ? (data.audioUrl is string && data.audioUrl.matches("^https://.*")) : true) &&
+             data.location is map && data.location.lat is number && data.location.lng is number &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             data.createdAt is timestamp &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$")));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /notes/{noteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidNote(request.resource.data);
+      allow update: if isOwner(resource.data.authorId) && 
+                      isValidNote(request.resource.data) &&
+                      request.resource.data.authorId == resource.data.authorId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && 
+                              (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin());
+    }
+  }
+}

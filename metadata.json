@@ -1,0 +1,5 @@
+{
+  "name": "GeoNotes AR",
+  "description": "An augmented reality app to see and create geolocated notes in the real world.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}
