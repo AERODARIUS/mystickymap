@@ -263,6 +263,7 @@ const NoteCreator = ({
       };
 
       mediaRecorder.start();
+      await auth.currentUser?.getIdToken(true);
       setIsRecording(true);
       setRecordingDuration(0);
       timerRef.current = window.setInterval(() => {
@@ -292,6 +293,8 @@ const NoteCreator = ({
     try {
       let audioUrl = editingNote?.audioUrl || '';
       if (type === 'audio' && audioBlob) {
+        // Ensure we have a fresh ID token so Storage requests include auth
+        const testIdToken = await auth.currentUser?.getIdToken(true);
         const audioRef = ref(storage, `audio_notes/${auth.currentUser.uid}_${Date.now()}.webm`);
         await uploadBytes(audioRef, audioBlob);
         audioUrl = await getDownloadURL(audioRef);
@@ -775,4 +778,3 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-

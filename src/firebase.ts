@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, getDocFromServer, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
@@ -10,6 +11,27 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Enable App Check so Storage/Firestore requests carry a valid token.
+// Provide your reCAPTCHA v3 site key via Vite env: VITE_RECAPTCHA_SITE_KEY.
+const appCheckSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+const appCheckDebugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
+
+// Allow opt-in debug token for local testing; must be set before initializeAppCheck
+if (appCheckDebugToken) {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  self.FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken === 'true' ? true : appCheckDebugToken;
+}
+
+if (appCheckSiteKey) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+} else {
+  console.warn('App Check not initialized: missing VITE_RECAPTCHA_SITE_KEY');
+}
 
 export { signInWithPopup, onAuthStateChanged, ref, uploadBytes, getDownloadURL };
 
