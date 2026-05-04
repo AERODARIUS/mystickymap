@@ -21,6 +21,13 @@
       "valueType": "BOOLEAN",
       "description": "Toggles the availability of the QR code scanning mode."
     },
+    "enable_emoji_pins": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Allows users to select custom emojis for their note pins."
+    },
     "max_note_length": {
       "defaultValue": {
         "value": "500"

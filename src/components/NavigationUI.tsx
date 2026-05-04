@@ -15,11 +15,13 @@ interface NavigationUIProps {
   editingNote: Note | null;
   draftLocation: { lat: number; lng: number } | null;
   draftColor: string;
+  draftEmoji: string;
   setView: (view: 'map' | 'ar' | 'anchor' | 'qr') => void;
   setIsTrackingLocation: (tracking: boolean) => void;
   setIsCreating: (creating: boolean) => void;
   setEditingNote: (note: Note | null) => void;
   setDraftColor: (color: string) => void;
+  setDraftEmoji: (emoji: string) => void;
   handleLogin: () => void;
   handleLogout: () => void;
   heading: number | null;
@@ -33,11 +35,13 @@ export const NavigationUI = ({
   editingNote,
   draftLocation,
   draftColor,
+  draftEmoji,
   setView,
   setIsTrackingLocation,
   setIsCreating,
   setEditingNote,
   setDraftColor,
+  setDraftEmoji,
   handleLogin,
   handleLogout,
   heading
@@ -187,6 +191,8 @@ export const NavigationUI = ({
                 }} 
                 color={draftColor}
                 setColor={setDraftColor}
+                emoji={draftEmoji}
+                setEmoji={setDraftEmoji}
                 editingNote={editingNote}
               />
             </motion.div>

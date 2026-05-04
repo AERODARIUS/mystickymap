@@ -48,6 +48,7 @@ export interface Note {
   isPrivate: boolean;
   createdAt: Timestamp;
   color?: string;
+  emoji?: string;
   language?: string;
 }
 

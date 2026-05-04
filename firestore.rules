@@ -48,8 +48,8 @@ service cloud.firestore {
     // ===============================================================
     
     function isValidNote(data) {
-      return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'isPrivate', 'authorName']) &&
-             data.keys().size() <= 11 && 
+      return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'isPrivate', 'authorName', 'content']) &&
+             data.keys().size() <= 12 && 
              data.type in ['text', 'audio'] &&
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() <= 100 &&
@@ -60,6 +60,7 @@ service cloud.firestore {
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 500 && data.audioUrl.matches("^https://.*"))) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
              (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
+             (!('emoji' in data) || (data.emoji is string && data.emoji.size() <= 10)) &&
              (!('language' in data) || (data.language is string && data.language.size() <= 20));
     }
 
@@ -91,7 +92,7 @@ service cloud.firestore {
                        incoming().authorId == existing().authorId && 
                        incoming().createdAt == existing().createdAt && 
                        incoming().updatedAt == request.time &&
-                       affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'language', 'isPrivate', 'authorName']);
+                       affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'isPrivate', 'authorName']);
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());
     }

@@ -119,7 +119,11 @@ export const AnchorView = ({
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 text-stone-500" />
+                        {note.emoji ? (
+                          <span className="text-lg leading-none">{note.emoji}</span>
+                        ) : (
+                          <UserIcon className="w-4 h-4 text-stone-500" />
+                        )}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-stone-900">{note.authorName}</p>

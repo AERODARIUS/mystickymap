@@ -2,7 +2,7 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Languages, Pencil, Trash2, Check, Share2, Compass, FileText, QrCode } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, Compass, FileText, QrCode } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechButton } from './SpeechButton';
@@ -17,6 +17,7 @@ interface MapMarkersProps {
   editingNote: Note | null;
   draftLocation: { lat: number; lng: number } | null;
   draftColor: string;
+  draftEmoji: string;
   selectedNote: Note | null;
   copyStatus: string | null;
   setDraftLocation: (loc: { lat: number; lng: number } | null) => void;
@@ -34,6 +35,7 @@ export const MapMarkers = ({
   editingNote,
   draftLocation,
   draftColor,
+  draftEmoji,
   selectedNote,
   copyStatus,
   setDraftLocation,
@@ -70,7 +72,7 @@ export const MapMarkers = ({
             className="flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 border-white z-50 cursor-grab active:cursor-grabbing"
             style={{ backgroundColor: draftColor }}
           >
-            <Plus className="w-6 h-6 text-white" />
+            <span className="text-2xl">{draftEmoji}</span>
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-r-4 border-b-4 border-white" style={{ backgroundColor: draftColor }} />
             <div className="absolute -inset-4 border-2 border-dashed rounded-full animate-[spin_4s_linear_infinite]" style={{ borderColor: draftColor, opacity: 0.5 }} />
           </motion.div>
@@ -87,7 +89,11 @@ export const MapMarkers = ({
             className="flex items-center justify-center w-10 h-10 rounded-full shadow-xl border-2 border-white transition-transform hover:scale-110 active:scale-95"
             style={{ backgroundColor: note.color || '#10b981' }}
           >
-            <FileText className="w-5 h-5 text-white" />
+            {note.emoji ? (
+              <span className="text-xl leading-none">{note.emoji}</span>
+            ) : (
+              <FileText className="w-5 h-5 text-white" />
+            )}
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r-2 border-b-2 border-white" style={{ backgroundColor: note.color || '#10b981' }} />
           </div>
         </AdvancedMarker>

@@ -49,6 +49,7 @@ export default function App() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [draftColor, setDraftColor] = useState('#10b981');
+  const [draftEmoji, setDraftEmoji] = useState('📝');
   const [draftLocation, setDraftLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function App() {
                   editingNote={editingNote}
                   draftLocation={draftLocation}
                   draftColor={draftColor}
+                  draftEmoji={draftEmoji}
                   selectedNote={selectedNote}
                   copyStatus={copyStatus}
                   setDraftLocation={setDraftLocation}
@@ -208,11 +210,13 @@ export default function App() {
             editingNote={editingNote}
             draftLocation={draftLocation}
             draftColor={draftColor}
+            draftEmoji={draftEmoji}
             setView={setView}
             setIsTrackingLocation={setIsTrackingLocation}
             setIsCreating={setIsCreating}
             setEditingNote={setEditingNote}
             setDraftColor={setDraftColor}
+            setDraftEmoji={setDraftEmoji}
             handleLogin={handleLogin}
             handleLogout={handleLogout}
             heading={heading}

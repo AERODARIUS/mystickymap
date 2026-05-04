@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Languages, EyeOff, Eye, Mic, Square, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
-import { db, auth, handleFirestoreError, OperationType, Timestamp } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType, serverTimestamp } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
@@ -16,12 +16,16 @@ export const NoteCreator = ({
   onNoteCreated,
   color,
   setColor,
+  emoji,
+  setEmoji,
   editingNote
 }: { 
   draftLocation: { lat: number, lng: number } | null, 
   onNoteCreated: () => void,
   color: string,
   setColor: (color: string) => void,
+  emoji: string,
+  setEmoji: (emoji: string) => void,
   editingNote?: Note | null
 }) => {
   const { t } = useTranslation();
@@ -31,6 +35,8 @@ export const NoteCreator = ({
   const [isPrivate, setIsPrivate] = useState(editingNote?.isPrivate ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const popularEmojis = ['📝', '🔥', '⚠️', '💡', '☠️', '💬', '🏠'];
+
   // Audio transcription state
   const [isRecording, setIsRecording] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -132,11 +138,12 @@ export const NoteCreator = ({
         content: content.trim(),
         location: draftLocation,
         authorId: auth.currentUser.uid,
-        authorName: auth.currentUser.displayName || 'Explorer',
+        authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
         isPrivate,
-        createdAt: editingNote ? editingNote.createdAt : Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: editingNote ? editingNote.createdAt : serverTimestamp(),
+        updatedAt: serverTimestamp(),
         color,
+        emoji,
         language
       };
 
@@ -161,15 +168,32 @@ export const NoteCreator = ({
         <h3 className="font-bold text-stone-900">
           {editingNote ? t('creator.edit_note') : t('creator.new_note')}
         </h3>
-        <div className="flex gap-2">
-          {['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
-            <button 
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-6 h-6 rounded-full border-2 ${color === c ? 'border-stone-900' : 'border-transparent'}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex gap-2">
+            {['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
+              <button 
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                className={`w-5 h-5 rounded-full border-2 ${color === c ? 'border-stone-900' : 'border-transparent'}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          {flags.enableEmojiPins && (
+            <div className="flex flex-wrap items-center justify-end gap-1.5 pb-1 max-w-[180px]">
+              {popularEmojis.map(e => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEmoji(e)}
+                  className={`text-base p-1 rounded-lg transition-all ${emoji === e ? 'bg-stone-100 scale-110 shadow-sm' : 'grayscale opacity-50 hover:grayscale-0 hover:opacity-100'}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

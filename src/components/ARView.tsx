@@ -90,8 +90,12 @@ export const ARView = ({
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5 mb-1.5 opacity-80">
-                        <UserIcon className="w-3 h-3" />
-                        <span className="text-[10px] font-semibold truncate max-w-[100px]">{note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}</span>
+                        {note.emoji ? (
+                          <span className="text-sm">{note.emoji}</span>
+                        ) : (
+                          <UserIcon className="w-3 h-3" />
+                        )}
+                        <span className="text-[10px] font-semibold truncate max-w-[80px]">{note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}</span>
                         {note.isPrivate && <EyeOff className="w-3 h-3 text-white/80" />}
                       </div>
                       <p className="text-sm font-medium line-clamp-4">{note.content}</p>

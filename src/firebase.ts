@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getRemoteConfig, fetchAndActivate, getValue } from 'firebase/remote-config';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -19,7 +19,7 @@ if (process.env.NODE_ENV !== 'production') {
   remoteConfig.settings.minimumFetchIntervalMillis = 0; // Fresh config on every reload in dev
 }
 
-export { signInWithPopup, onAuthStateChanged, ref, uploadBytes, getDownloadURL, fetchAndActivate, getValue };
+export { signInWithPopup, onAuthStateChanged, ref, uploadBytes, getDownloadURL, fetchAndActivate, getValue, Timestamp, serverTimestamp };
 
 export enum OperationType {
   CREATE = 'create',
@@ -83,4 +83,4 @@ async function testConnection() {
 }
 testConnection();
 
-export { Timestamp };
+// Removed extra Timestamp export as it is now in the main export block

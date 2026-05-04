@@ -53,6 +53,10 @@
           "type": "string",
           "description": "Optional hex color for the note."
         },
+        "emoji": {
+          "type": "string",
+          "description": "Optional emoji for the note pint."
+        },
         "language": {
           "type": "string",
           "description": "The language code of the note (e.g., 'en-US', 'es-ES')."

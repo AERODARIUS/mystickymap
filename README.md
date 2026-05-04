@@ -40,6 +40,29 @@
 
 ---
 
+## 🚩 Feature Flags (Remote Config)
+
+This application uses **Firebase Remote Config** to manage feature rollout and application behavior without requiring a new deployment.
+
+### Available Flags
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `enable_audio_notes` | Boolean | `true` | Enables/disables speech-to-text note creation. |
+| `enable_ar_view` | Boolean | `true` | Toggles the availability of the AR View mode. |
+| `enable_qr_scanner` | Boolean | `true` | Toggles the availability of the QR scanning mode. |
+| `max_note_length` | Number | `500` | Sets the maximum character limit for sticky notes. |
+| `highlight_note_color` | String | `#10b981` | Global brand color for markers and UI accents. |
+
+### How to Configure
+
+1. Go to the [Firebase Console](https://console.firebase.google.com/).
+2. Select your project and navigate to **Run > Remote Config**.
+3. You can use the values provided in `remote_config_template.json` in the root of this project to initialize your parameters.
+4. Click **Publish changes** to push the new configuration to all active users.
+
+---
+
 ## 📱 Permissions Required
 To provide the full experience, this app requires:
 - **Location**: To place notes and show your position on the map.
