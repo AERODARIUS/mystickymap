@@ -1,5 +1,10 @@
 {
-  "name": "GeoNotes AR",
-  "description": "An augmented reality app to see and create geolocated notes in the real world.",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+  "name": "My Sticky Map",
+  "description": "An augmented reality app to see, create, and share geolocated notes in the real world with permanent links.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": []
 }

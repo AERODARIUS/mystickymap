@@ -2,79 +2,118 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
-    // Assumed Data Model
+    // Global Safety Net
     // ===============================================================
-    //
-    // Collection: notes
-    // Document ID: auto-generated
-    // Fields:
-    //   - type: string (required, 'text' or 'audio')
-    //   - content: string (optional, 1-1000 chars)
-    //   - audioUrl: string (optional, URL)
-    //   - location: map (required, {lat: number, lng: number})
-    //   - authorId: string (required, immutable)
-    //   - createdAt: timestamp (required, immutable)
-    //   - updatedAt: timestamp (optional)
-    //   - color: string (optional, hex color)
-    //
-    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "DarioDCruz@gmail.com" && request.auth.token.email_verified == true));
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    function incoming() {
+      return request.resource.data;
     }
 
-    function isValidNote(data) {
-      return hasRequiredFields(['type', 'location', 'authorId', 'createdAt']) &&
-             hasOnlyAllowedFields(['type', 'content', 'audioUrl', 'location', 'authorId', 'createdAt', 'updatedAt', 'color']) &&
-             data.type in ['text', 'audio'] &&
-             (data.type == 'text' ? (data.content is string && data.content.size() > 0 && data.content.size() <= 1000) : true) &&
-             (data.type == 'audio' ? (data.audioUrl is string && data.audioUrl.matches("^https://.*")) : true) &&
-             data.location is map && data.location.lat is number && data.location.lng is number &&
-             data.authorId is string && data.authorId == request.auth.uid &&
-             data.createdAt is timestamp &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
-             (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$")));
+    function existing() {
+      return resource.data;
+    }
+
+    function affectedKeys() {
+      return incoming().diff(existing()).affectedKeys();
     }
 
     // ===============================================================
-    // Rules
+    // Entity Validations
+    // ===============================================================
+    
+    function isValidNote(data) {
+      return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'isPrivate', 'authorName']) &&
+             data.keys().size() <= 11 && 
+             data.type in ['text', 'audio'] &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             data.authorName is string && data.authorName.size() <= 100 &&
+             data.location is map && data.location.lat is number && data.location.lng is number &&
+             data.isPrivate is bool &&
+             data.createdAt is timestamp &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 1000)) &&
+             (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 500 && data.audioUrl.matches("^https://.*"))) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
+             (!('language' in data) || (data.language is string && data.language.size() <= 20));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName']) &&
+             data.keys().size() <= 5 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             (!('role' in data) || (data.role is string && data.role in ['user', 'admin'])) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Collection Rules
     // ===============================================================
 
     match /notes/{noteId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidNote(request.resource.data);
-      allow update: if isOwner(resource.data.authorId) && 
-                      isValidNote(request.resource.data) &&
-                      request.resource.data.authorId == resource.data.authorId &&
-                      request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+      allow get: if isValidId(noteId) && (existing().isPrivate == false || isOwner(existing().authorId) || isAdmin());
+      allow list: if (resource.data.isPrivate == false || (isSignedIn() && resource.data.authorId == request.auth.uid)) || isAdmin();
+      
+      allow create: if isVerifiedUser() && 
+                       isValidNote(incoming()) && 
+                       incoming().createdAt == request.time;
+      
+      allow update: if isVerifiedUser() && 
+                       isValidId(noteId) &&
+                       isOwner(existing().authorId) && 
+                       isValidNote(incoming()) &&
+                       incoming().authorId == existing().authorId && 
+                       incoming().createdAt == existing().createdAt && 
+                       incoming().updatedAt == request.time &&
+                       affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'language', 'isPrivate', 'authorName']);
+      
+      allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isOwner(userId) && 
-                              (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin());
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin(); 
+      
+      allow create: if isVerifiedUser() && isOwner(userId) && isValidUser(incoming());
+      
+      allow update: if isVerifiedUser() && 
+                       isValidId(userId) && 
+                       isOwner(userId) && 
+                       isValidUser(incoming()) &&
+                       (!affectedKeys().hasAny(['role']) || isAdmin());
+      
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; 
     }
   }
 }

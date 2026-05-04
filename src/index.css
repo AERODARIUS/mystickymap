@@ -1,1 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Indie+Flower&family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-handwriting: "Indie Flower", cursive;
+}
+
+/* Fix for horizontal scrollbar in Google Maps InfoWindow */
+.gm-style-iw-d {
+  overflow-x: hidden !important;
+}
+
+.gm-style-iw {
+  padding: 0 !important;
+}

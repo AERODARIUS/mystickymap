@@ -7,6 +7,7 @@
       "properties": {
         "content": {
           "type": "string",
+          "maxLength": 1000,
           "description": "The text content of the note (optional if audio is present)."
         },
         "type": {
@@ -30,6 +31,14 @@
           "type": "string",
           "description": "The UID of the user who created the note."
         },
+        "authorName": {
+          "type": "string",
+          "description": "The display name of the user who created the note."
+        },
+        "isPrivate": {
+          "type": "boolean",
+          "description": "Whether the note is private to the author."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -43,15 +52,34 @@
         "color": {
           "type": "string",
           "description": "Optional hex color for the note."
+        },
+        "language": {
+          "type": "string",
+          "description": "The language code of the note (e.g., 'en-US', 'es-ES')."
         }
       },
       "required": ["type", "location", "authorId", "createdAt"]
+    },
+    "users": {
+      "title": "User",
+      "description": "User profile data.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
     "/notes/{noteId}": {
       "schema": "notes",
       "description": "Global collection of geolocated notes."
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profiles restricted to owners."
     }
   }
 }
