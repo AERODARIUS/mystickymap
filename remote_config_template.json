@@ -1,0 +1,39 @@
+{
+  "parameters": {
+    "enable_audio_notes": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Enables or disables speech-to-text note creation."
+    },
+    "enable_ar_view": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Toggles the availability of the Augmented Reality view."
+    },
+    "enable_qr_scanner": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Toggles the availability of the QR code scanning mode."
+    },
+    "max_note_length": {
+      "defaultValue": {
+        "value": "500"
+      },
+      "valueType": "NUMBER",
+      "description": "The maximum character limit for notes."
+    },
+    "highlight_note_color": {
+      "defaultValue": {
+        "value": "#10b981"
+      },
+      "valueType": "STRING",
+      "description": "The color used for highlighting markers and active UI elements."
+    }
+  }
+}

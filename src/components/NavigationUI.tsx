@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { Note } from '../types';
 import { NoteCreator } from './NoteCreator';
 
@@ -42,14 +43,26 @@ export const NavigationUI = ({
   heading
 }: NavigationUIProps) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const viewOptions = [
-    { id: 'map', label: t('nav.map_view'), icon: Map },
-    { id: 'ar', label: t('nav.ar_view'), icon: Camera },
-    { id: 'qr', label: t('nav.qr_notes'), icon: QrCode },
-    { id: 'anchor', label: t('nav.nearby_notes'), icon: Notebook },
-  ] as const;
+  const viewOptions = useMemo(() => {
+    const options: Array<{ id: 'map' | 'ar' | 'anchor' | 'qr'; label: string; icon: React.ElementType }> = [
+      { id: 'map', label: t('nav.map_view'), icon: Map },
+    ];
+
+    if (flags.enableARView) {
+      options.push({ id: 'ar', label: t('nav.ar_view'), icon: Camera });
+    }
+
+    if (flags.enableQRScanner) {
+      options.push({ id: 'qr', label: t('nav.qr_notes'), icon: QrCode });
+    }
+
+    options.push({ id: 'anchor', label: t('nav.nearby_notes'), icon: Notebook });
+
+    return options;
+  }, [t, flags.enableARView, flags.enableQRScanner]);
 
   const ActiveIcon = viewOptions.find(opt => opt.id === view)?.icon || Map;
 

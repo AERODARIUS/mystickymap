@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { X, Languages, EyeOff, Eye, Mic, Square, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, Timestamp } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { Note, SUPPORTED_LANGUAGES, MAX_NOTE_LENGTH } from '../types';
+import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
 
 const RecognitionConstructor = (typeof window !== 'undefined') 
@@ -24,6 +25,7 @@ export const NoteCreator = ({
   editingNote?: Note | null
 }) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const [content, setContent] = useState(editingNote?.content || '');
   const [language, setLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
   const [isPrivate, setIsPrivate] = useState(editingNote?.isPrivate ?? false);
@@ -33,7 +35,7 @@ export const NoteCreator = ({
   const [isRecording, setIsRecording] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const [isSpeechSupported] = useState(!!RecognitionConstructor);
+  const [isSpeechSupported] = useState(!!RecognitionConstructor && flags.enableAudioNotes);
   const [speechDetected, setSpeechDetected] = useState(false);
 
   const startRecording = () => {
@@ -178,14 +180,14 @@ export const NoteCreator = ({
             onChange={(e) => setContent(e.target.value)}
             placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
             className={`w-full p-4 pb-12 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-40 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
-            maxLength={MAX_NOTE_LENGTH}
+            maxLength={flags.maxNoteLength}
           />
           
           <div className="absolute top-2 right-12 z-10">
             <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm border ${
-              content.length >= (MAX_NOTE_LENGTH * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white/80 border-stone-100 text-stone-400'
+              content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white/80 border-stone-100 text-stone-400'
             }`}>
-              {content.length}/{MAX_NOTE_LENGTH}
+              {content.length}/{flags.maxNoteLength}
             </span>
           </div>
           
