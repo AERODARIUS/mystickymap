@@ -18,6 +18,7 @@ import { NavigationUI } from './components/NavigationUI';
 import { AnchorView } from './components/AnchorView';
 import { QRNotesView } from './components/QRNotesView';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
+import { InstallPrompt } from './components/InstallPrompt';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
@@ -228,6 +229,7 @@ export default function App() {
           isOpen={!!qrCodeNoteId} 
           onClose={() => setQrCodeNoteId(null)} 
         />
+        <InstallPrompt />
       </APIProvider>
     </ErrorBoundary>
   );

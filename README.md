@@ -27,18 +27,33 @@
 - **Real-time Persistence**: Built on Firestore, ensuring that notes are "dropped" and saved instantly for all users.
 - **Compass Calibration**: Advanced math (haversine formula and bearing calculations) ensures AR notes are positioned accurately relative to your heading.
 
+### 6. 📱 PWA & Offline Support
+- **Installable**: Add the app to your home screen for a native-like experience on iOS and Android.
+- **Offline Access**: Essential assets and previously viewed maps/notes are cached for faster loading and basic offline resilience.
+- **Background Persistence**: Firebase Firestore persistence ensures you can still "draft" notes even with poor connectivity.
+
 ---
 
 ## 🛠️ Technology Stack
 - **Frontend**: React 18, Vite, Tailwind CSS
+- **PWA**: vite-plugin-pwa (Workbox)
 - **Maps**: @vis.gl/react-google-maps
 - **AR/Camera**: Web MediaDevices API & DeviceOrientation API
-- **Animations**: Framer Motion
+- **Animations**: motion (Framer Motion)
 - **Icons**: Lucide React
-- **Backend**: Firebase (Firestore, Authentication)
+- **Backend**: Firebase (Firestore, Authentication, Hosting)
 - **AI/ML**: Web Speech API (Recognition & Synthesis)
 
 ---
+
+## 📲 PWA Capabilities
+
+My Sticky Map is a fully compliant **Progressive Web App**.
+
+- **Standalone Mode**: The app runs in its own window without browser chrome, providing an immersive AR experience.
+- **Smart Caching**: Uses a `StaleWhileRevalidate` and `CacheFirst` strategy for static assets and Google Maps APIs.
+- **Install Prompt**: includes a custom, non-intrusive install banner for users on supported browsers.
+- **Theme Integration**: Respects system dark mode and sets the mobile status bar color to match the application's branding.
 
 ## 🚩 Feature Flags (Remote Config)
 
