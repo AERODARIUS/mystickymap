@@ -133,7 +133,7 @@ export const QRNotesView = ({
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <SpeechButton text={scannedNote.content || ''} />
+                    <SpeechButton text={scannedNote.content || ''} language={scannedNote.language} />
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();

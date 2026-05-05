@@ -114,7 +114,7 @@ export const ARView = ({
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <SpeechButton text={note.content || ''} />
+                      <SpeechButton text={note.content || ''} language={note.language} />
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
