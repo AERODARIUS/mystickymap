@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
 import { SpeechButton } from './SpeechButton';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
@@ -32,6 +33,21 @@ export const AnchorView = ({
   const { t } = useTranslation();
   const [radius, setRadius] = useState<number>(1000); // meters
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, 'notes', deleteId));
+      setDeleteId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `notes/${deleteId}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredNotes = useMemo(() => {
     let result = notes.map(note => ({
@@ -64,6 +80,12 @@ export const AnchorView = ({
 
   return (
     <div className="h-full bg-stone-50 overflow-y-auto px-6 pt-24 pb-32">
+      <DeleteConfirmModal
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
+      />
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header/Filters */}
         <div className="bg-white rounded-3xl shadow-sm border border-stone-100 p-6 space-y-6">
@@ -200,15 +222,9 @@ export const AnchorView = ({
                                 <Pencil className="w-4 h-4" />
                               </button>
                               <button 
-                                onClick={async (e) => {
+                                onClick={(e) => {
                                   e.stopPropagation();
-                                  if (window.confirm(t('anchor.delete_confirm'))) {
-                                    try {
-                                      await deleteDoc(doc(db, 'notes', note.id));
-                                    } catch (error) {
-                                      handleFirestoreError(error, OperationType.DELETE, `notes/${note.id}`);
-                                    }
-                                  }
+                                  setDeleteId(note.id);
                                 }}
                                 className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors flex items-center justify-center"
                                 title={t('anchor.delete_note')}

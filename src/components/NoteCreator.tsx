@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Languages, EyeOff, Eye, Mic, Square, Send } from 'lucide-react';
+import { X, Languages, EyeOff, Eye, Mic, Square, Send, Smile } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp } from '../firebase';
@@ -35,7 +35,14 @@ export const NoteCreator = ({
   const [isPrivate, setIsPrivate] = useState(editingNote?.isPrivate ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const popularEmojis = ['📝', '🔥', '⚠️', '💡', '☠️', '💬', '🏠'];
+  const allEmojis = [
+    // Smileys
+    '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
+    // Hearts & Symbols
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆏', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '🔱', '⚜️', '〽️', '⚠️', '🚸', '🔰', '♻️', '🈯', '💹', '❇️', '✳️', '❎', '✅', '💠', '🌀', '➿', '🌐', 'Ⓜ️', '🏧', '🈂️', '🛂', 'Customs', '🛃', 'Baggage', '🛄', '🛅',
+    // Activities & Objects
+    '📝', '🔥', '💡', '💬', '🏠', '📍', '🗺️', '📸', '🎨', '🎉', '⭐', '✨', '🌈', '☀️', '🌙', '☁️', '❄️', '🍔', '🍕', '🍺', '☕', '🏢', '🚗', '🚲', '⚡', '👣', '🎒', '🧗', '🐕', '🐱', '🌳', '🌊', '⚽', '🏀', '🎮', '🎧', '📱', '💻', '⌚', '🎁', '🎈', '🛒', '🔑', '🔒', '💎', '💰'
+  ];
 
   // Audio transcription state
   const [isRecording, setIsRecording] = useState(false);
@@ -43,6 +50,19 @@ export const NoteCreator = ({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isSpeechSupported] = useState(!!RecognitionConstructor && flags.enableAudioNotes);
   const [speechDetected, setSpeechDetected] = useState(false);
+  const [isEmojiPopoverOpen, setIsEmojiPopoverOpen] = useState(false);
+  const emojiPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Close emoji popover when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPopoverRef.current && !emojiPopoverRef.current.contains(event.target as Node)) {
+        setIsEmojiPopoverOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const startRecording = () => {
     if (!RecognitionConstructor) {
@@ -164,37 +184,54 @@ export const NoteCreator = ({
 
   return (
     <div className="bg-white p-6 rounded-t-3xl shadow-2xl border-t border-stone-100">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-bold text-stone-900">
-          {editingNote ? t('creator.edit_note') : t('creator.new_note')}
-        </h3>
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex gap-2">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <h3 className="font-bold text-stone-900 whitespace-nowrap">
+            {editingNote ? t('creator.edit_note') : t('creator.new_note')}
+          </h3>
+          <div className="flex gap-1.5">
             {['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
               <button 
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                className={`w-5 h-5 rounded-full border-2 ${color === c ? 'border-stone-900' : 'border-transparent'}`}
+                className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-stone-900 scale-110' : 'border-stone-100'}`}
                 style={{ backgroundColor: c }}
               />
             ))}
           </div>
-          {flags.enableEmojiPins && (
-            <div className="flex flex-wrap items-center justify-end gap-1.5 pb-1 max-w-[180px]">
-              {popularEmojis.map(e => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`text-base p-1 rounded-lg transition-all ${emoji === e ? 'bg-stone-100 scale-110 shadow-sm' : 'grayscale opacity-50 hover:grayscale-0 hover:opacity-100'}`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+
+        {flags.enableEmojiPins && (
+          <div className="relative" ref={emojiPopoverRef}>
+            <button
+              type="button"
+              onClick={() => setIsEmojiPopoverOpen(!isEmojiPopoverOpen)}
+              className="p-2 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors flex items-center gap-2"
+            >
+              <span className="text-xl leading-none">{emoji}</span>
+              <Smile className="w-4 h-4 text-stone-500" />
+            </button>
+
+            {isEmojiPopoverOpen && (
+              <div className="absolute right-0 bottom-full mb-2 bg-white p-3 rounded-2xl shadow-xl border border-stone-100 z-50 grid grid-cols-6 gap-1 animate-in fade-in zoom-in-95 duration-100 w-max max-w-[300px] max-h-64 overflow-y-auto scrollbar-thin">
+                {allEmojis.map((e, index) => (
+                  <button
+                    key={`${e}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      setEmoji(e);
+                      setIsEmojiPopoverOpen(false);
+                    }}
+                    className={`text-xl p-2 rounded-xl transition-all hover:bg-stone-100 flex items-center justify-center ${emoji === e ? 'bg-stone-100 scale-110' : ''}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,17 +240,9 @@ export const NoteCreator = ({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
-            className={`w-full p-4 pb-12 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-40 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
+            className={`w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-40 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
             maxLength={flags.maxNoteLength}
           />
-          
-          <div className="absolute top-2 right-12 z-10">
-            <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm border ${
-              content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white/80 border-stone-100 text-stone-400'
-            }`}>
-              {content.length}/{flags.maxNoteLength}
-            </span>
-          </div>
           
           {interimTranscript && isRecording && (
             <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 pointer-events-none">
@@ -243,56 +272,64 @@ export const NoteCreator = ({
               </button>
             )}
           </div>
-          
-          <div className="absolute bottom-4 left-4 flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-white/80 backdrop-blur px-2 py-1 rounded-lg border border-stone-100 shadow-sm hover:shadow-md transition-all">
-              <Languages className="w-3 h-3 text-stone-400" />
+        </div>
+
+        {/* Controls and Stats below Textarea */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`text-xs font-mono font-medium px-2 py-2 rounded-xl border transition-colors ${
+              content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
+            }`}>
+              {content.length} / {flags.maxNoteLength}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setIsPrivate(!isPrivate)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${
+                isPrivate 
+                  ? 'bg-rose-50 border-rose-100 text-rose-600' 
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-600'
+              }`}
+            >
+              {isPrivate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {isPrivate ? t('creator.private') : t('creator.public')}
+            </button>
+
+            {isSpeechSupported && (
+              <>
+                <div className="w-full h-0" />
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`p-2 rounded-xl transition-all shadow-sm ${
+                    isRecording 
+                      ? 'bg-red-600 text-white animate-pulse' 
+                      : 'bg-red-500 text-white hover:bg-red-600 transform hover:scale-105'
+                  }`}
+                >
+                  {isRecording ? (
+                    <Square className="w-5 h-5 fill-current" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
+                </button>
+              </>
+            )}
+
+            <div className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
+              <Languages className="w-4 h-4 text-stone-400" />
               <select 
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="text-[10px] bg-transparent outline-none font-medium text-stone-600 appearance-none cursor-pointer"
+                className="text-xs bg-transparent outline-none font-medium text-stone-600 appearance-none cursor-pointer pr-1"
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang.code} value={lang.code}>{lang.label}</option>
                 ))}
               </select>
             </div>
-            
-            <button
-              type="button"
-              onClick={() => setIsPrivate(!isPrivate)}
-              className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-sm transition-all text-[10px] font-bold ${
-                isPrivate 
-                  ? 'bg-rose-50 border-rose-100 text-rose-600' 
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-              }`}
-              title={isPrivate ? t('creator.public') : t('creator.private')}
-            >
-              {isPrivate ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              {isPrivate ? t('creator.private') : t('creator.public')}
-            </button>
           </div>
-          
-          {isSpeechSupported && (
-            <button
-              type="button"
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`absolute bottom-4 right-4 p-3 rounded-full transition-all shadow-lg ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse' 
-                  : 'bg-stone-900 text-white hover:bg-stone-800'
-              }`}
-            >
-              {isRecording ? (
-                <div className="flex items-center gap-2 px-1">
-                  <Square className="w-4 h-4 fill-current" />
-                  <span className="text-[10px] font-bold">{t('creator.live')}</span>
-                </div>
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
-            </button>
-          )}
         </div>
 
         <button

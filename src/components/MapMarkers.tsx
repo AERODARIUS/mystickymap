@@ -6,6 +6,7 @@ import { Languages, Pencil, Trash2, Check, Share2, Compass, FileText, QrCode } f
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechButton } from './SpeechButton';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
@@ -45,8 +46,31 @@ export const MapMarkers = ({
   onGenerateQRCode
 }: MapMarkersProps) => {
   const { t } = useTranslation();
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, 'notes', deleteId));
+      setSelectedNote(null);
+      setDeleteId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `notes/${deleteId}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <>
+      <DeleteConfirmModal
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
+      />
       {userLocation && (
         <AdvancedMarker position={userLocation}>
           <div className="relative">
@@ -163,16 +187,7 @@ export const MapMarkers = ({
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button 
-                      onClick={async () => {
-                        if (window.confirm(t('anchor.delete_confirm'))) {
-                          try {
-                            await deleteDoc(doc(db, 'notes', selectedNote.id));
-                            setSelectedNote(null);
-                          } catch (error) {
-                            handleFirestoreError(error, OperationType.DELETE, `notes/${selectedNote.id}`);
-                          }
-                        }
-                      }}
+                      onClick={() => setDeleteId(selectedNote.id)}
                       className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors flex items-center justify-center"
                       title={t('anchor.delete_note')}
                     >
