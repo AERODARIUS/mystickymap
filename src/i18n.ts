@@ -51,7 +51,9 @@ const resources = {
           scan_title: "Scan Note QR Code",
           captured_via: "Captured via QR",
           share_link: "Share link",
-          you: "You"
+          you: "You",
+          not_found: "The note does not exist, is private or has been deleted.",
+          toggle_torch: "Toggle Light"
         }
       },
       anchor: {
@@ -128,7 +130,9 @@ const resources = {
           scan_title: "Escanear código QR de la nota",
           captured_via: "Capturado vía QR",
           share_link: "Compartir enlace",
-          you: "Tú"
+          you: "Tú",
+          not_found: "La nota no existe, es privada o ha sido eliminada.",
+          toggle_torch: "Alternar luz"
         }
       },
       anchor: {
@@ -205,7 +209,9 @@ const resources = {
           scan_title: "Escanear Código QR da Nota",
           captured_via: "Capturado via QR",
           share_link: "Compartilhar link",
-          you: "Você"
+          you: "Você",
+          not_found: "A nota não existe, é privada ou foi excluída.",
+          toggle_torch: "Alternar luz"
         }
       },
       anchor: {
@@ -282,7 +288,9 @@ const resources = {
           scan_title: "Scanner le Code QR de la Note",
           captured_via: "Capturé via QR",
           share_link: "Partager le lien",
-          you: "Vous"
+          you: "Vous",
+          not_found: "La note n'existe pas, est privée ou a été supprimée.",
+          toggle_torch: "Allumer/Éteindre la lumière"
         }
       },
       anchor: {

@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link } from 'lucide-react';
+import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link, Flashlight, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import { Note } from '../types';
 import { SpeechButton } from './SpeechButton';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface QRNotesViewProps {
   notes: Note[];
@@ -23,6 +25,9 @@ export const QRNotesView = ({
   const { t } = useTranslation();
   const [scannedNote, setScannedNote] = useState<Note | null>(null);
   const [isScanning, setIsScanning] = useState(true);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
+  const [scanError, setScanError] = useState(false);
   const qrRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-reader";
 
@@ -38,30 +43,90 @@ export const QRNotesView = ({
             fps: 10,
             qrbox: { width: 250, height: 250 }
           },
-          (decodedText) => {
+          async (decodedText) => {
             // Process QR code text
-            // Could be just the ID or a URL like https://.../?noteId=XXXX
             let noteId = decodedText;
+            let isMalformed = false;
             try {
-              const url = new URL(decodedText);
-              const idFromUrl = url.searchParams.get('noteId');
-              if (idFromUrl) noteId = idFromUrl;
+              if (decodedText.startsWith('http')) {
+                const url = new URL(decodedText);
+                const idFromUrl = url.searchParams.get('noteId');
+                if (idFromUrl) {
+                  noteId = idFromUrl;
+                } else {
+                  isMalformed = true;
+                }
+              } else {
+                // If it's not a URL, check simple length constraint
+                if (!decodedText || decodedText.length < 5 || decodedText.length > 100) {
+                  isMalformed = true;
+                }
+              }
             } catch {
-              // Not a URL, use raw text as ID
+              isMalformed = true;
+            }
+
+            if (isMalformed) {
+              setScanError(true);
+              setIsScanning(false);
+              html5QrCode.pause();
+              return;
             }
 
             const note = notes.find(n => n.id === noteId);
             if (note) {
               setScannedNote(note);
+              setScanError(false);
               setIsScanning(false);
-              // Stop scanning temporarily when a note is found
               html5QrCode.pause();
+            } else {
+              // Not in shared notes list, try fetching directly (e.g. Unlisted notes)
+              try {
+                const docSnap = await getDoc(doc(db, 'notes', noteId));
+                if (docSnap.exists()) {
+                  const data = docSnap.data() as Note;
+                  const isNotePrivate = data.visibility === 'private' || data.isPrivate;
+                  const isMine = data.authorId === user?.uid;
+
+                  // If it's private and not mine, treat it as not found/not accessible
+                  if (isNotePrivate && !isMine) {
+                    setScanError(true);
+                    setIsScanning(false);
+                    html5QrCode.pause();
+                  } else {
+                    setScannedNote({ id: docSnap.id, ...data } as Note);
+                    setScanError(false);
+                    setIsScanning(false);
+                    html5QrCode.pause();
+                  }
+                } else {
+                  setScanError(true);
+                  setIsScanning(false);
+                  html5QrCode.pause();
+                }
+              } catch (err) {
+                setScanError(true);
+                setIsScanning(false);
+                html5QrCode.pause();
+                console.error("Error fetching note:", err);
+              }
             }
           },
           () => {
-            // Error scanning, usually just "no code found" in this frame
+            // Error scanning
           }
         );
+
+        // Check for torch support
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const capabilities = html5QrCode.getRunningTrackCapabilities() as any;
+          if (capabilities && capabilities.torch) {
+            setTorchSupported(true);
+          }
+        } catch (e) {
+          console.warn("Torch capabilities not available", e);
+        }
       } catch (err) {
         console.error("Error starting QR scanner:", err);
       }
@@ -74,13 +139,36 @@ export const QRNotesView = ({
         html5QrCode.stop().catch(err => console.error("Error stopping QR scanner:", err));
       }
     };
-  }, [notes]);
+  }, [notes, user?.uid]);
 
   const resumeScanning = () => {
     setScannedNote(null);
+    setScanError(false);
     setIsScanning(true);
     if (qrRef.current) {
-      qrRef.current.resume();
+      // Check if paused before resuming to avoid the "Cannot resume" error
+      try {
+        // html5-qrcode state: 3 is PAUSED
+        if (qrRef.current.getState() === 3) {
+          qrRef.current.resume();
+        }
+      } catch (err) {
+        console.warn("Could not resume QR scanner:", err);
+      }
+    }
+  };
+
+  const toggleTorch = async () => {
+    if (!qrRef.current || !torchSupported) return;
+    try {
+      const nextTorch = !isTorchOn;
+      await qrRef.current.applyVideoConstraints({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        advanced: [{ torch: nextTorch }] as any
+      });
+      setIsTorchOn(nextTorch);
+    } catch (err) {
+      console.error("Error toggling torch:", err);
     }
   };
 
@@ -91,13 +179,33 @@ export const QRNotesView = ({
       
       {/* Overlay for UI */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {isScanning && (
+        {isScanning && !scanError && (
           <div className="border-2 border-emerald-500/50 w-64 h-64 rounded-3xl animate-pulse flex items-center justify-center">
             <QrCode className="w-12 h-12 text-emerald-500/30" />
           </div>
         )}
 
         <AnimatePresence>
+          {scanError && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute p-6 rounded-2xl bg-red-500/90 backdrop-blur-md shadow-2xl border border-white/20 text-white max-w-[280px] pointer-events-auto text-center"
+            >
+              <AlertCircle className="w-12 h-12 mx-auto mb-4 text-white animate-bounce" />
+              <p className="text-sm font-bold mb-4">
+                {t('qr.view.not_found')}
+              </p>
+              <button 
+                onClick={resumeScanning}
+                className="px-6 py-2 bg-white text-red-600 rounded-full font-bold hover:bg-gray-100 transition-colors"
+              >
+                {t('anchor.no_notes').split('...')[0]}...
+              </button>
+            </motion.div>
+          )}
+
           {scannedNote && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 50, rotate: -3 }}
@@ -149,7 +257,7 @@ export const QRNotesView = ({
                 </div>
                 
                 <div className="pt-4 border-t border-white/20 flex justify-between items-center text-[10px] opacity-70 font-bold uppercase tracking-wider">
-                  <span>{new Date(scannedNote.createdAt.toDate()).toLocaleDateString()}</span>
+                  <span>{scannedNote.createdAt?.toDate ? new Date(scannedNote.createdAt.toDate()).toLocaleDateString() : 'Recent'}</span>
                   <span>{t('qr.view.captured_via')}</span>
                 </div>
               </div>
@@ -158,9 +266,25 @@ export const QRNotesView = ({
         </AnimatePresence>
       </div>
 
-      <div className="absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white text-xs border border-white/10">
-        <QrCode className="w-3 h-3 animate-pulse text-emerald-400" />
-        <span>{t('qr.view.scan_title')}</span>
+      <div className="absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-4">
+        <div className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white text-xs border border-white/10">
+          <QrCode className="w-3 h-3 animate-pulse text-emerald-400" />
+          <span>{t('qr.view.scan_title')}</span>
+        </div>
+
+        {torchSupported && isScanning && (
+          <button
+            onClick={toggleTorch}
+            className={`p-3 rounded-full transition-all border ${
+              isTorchOn 
+                ? 'bg-yellow-400 text-black border-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.5)]' 
+                : 'bg-black/40 text-white border-white/10'
+            }`}
+            title={t('qr.view.toggle_torch')}
+          >
+            <Flashlight className={`w-5 h-5 ${isTorchOn ? 'fill-current' : ''}`} />
+          </button>
+        )}
       </div>
     </div>
   );
