@@ -163,12 +163,12 @@ export const AnchorView = ({
                     </div>
 
                     <div className="p-4 rounded-2xl bg-stone-50 text-stone-700 text-sm leading-relaxed" style={{ borderLeft: `4px solid ${note.color}` }}>
-                      {note.visibility === 'private' || note.isPrivate ? (
+                      {note.privacy === 'private' ? (
                         <div className="inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-bold">
                           <Lock className="w-2.5 h-2.5" />
                           {t('creator.private')}
                         </div>
-                      ) : note.visibility === 'unlisted' ? (
+                      ) : note.privacy === 'unlisted' ? (
                         <div className="inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-bold">
                           <Link className="w-2.5 h-2.5" />
                           UNLISTED

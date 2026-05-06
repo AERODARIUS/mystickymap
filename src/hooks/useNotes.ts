@@ -16,8 +16,7 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
       q = query(
         collection(db, 'notes'), 
         or(
-          where('visibility', '==', 'public'), 
-          where('isPrivate', '==', false),
+          where('privacy', '==', 'public'), 
           where('authorId', '==', user.uid)
         ),
         orderBy('createdAt', 'desc')
@@ -25,10 +24,7 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
     } else {
       q = query(
         collection(db, 'notes'), 
-        or(
-          where('visibility', '==', 'public'),
-          where('isPrivate', '==', false)
-        ),
+        where('privacy', '==', 'public'),
         orderBy('createdAt', 'desc')
       );
     }
@@ -36,14 +32,9 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newNotes = snapshot.docs.map(doc => {
         const data = doc.data();
-        let visibility = data.visibility;
-        if (!visibility) {
-          visibility = data.isPrivate ? 'private' : 'public';
-        }
         return {
           id: doc.id,
           ...data,
-          visibility
         } as Note;
       });
       setNotes(newNotes);

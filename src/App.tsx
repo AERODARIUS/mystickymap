@@ -110,14 +110,9 @@ export default function App() {
             const docSnap = await getDoc(doc(db, 'notes', noteIdFromUrl));
             if (docSnap.exists()) {
               const data = docSnap.data();
-              let visibility = data.visibility;
-              if (!visibility) {
-                visibility = data.isPrivate ? 'private' : 'public';
-              }
               const fetchedNote = {
                 id: docSnap.id,
                 ...data,
-                visibility
               } as Note;
 
               // Security rules will block this if it's Private and we're not the owner

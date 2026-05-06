@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { Note, SUPPORTED_LANGUAGES, NoteVisibility } from '../types';
+import { Note, SUPPORTED_LANGUAGES, NotePrivacy } from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
@@ -33,9 +33,7 @@ export const NoteCreator = ({
   const { flags } = useFeatureFlags();
   const [content, setContent] = useState(editingNote?.content || '');
   const [language, setLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
-  const [visibility, setVisibility] = useState<NoteVisibility>(
-    editingNote?.visibility || (editingNote?.isPrivate ? 'private' : 'public')
-  );
+  const [privacy, setPrivacy] = useState<NotePrivacy>(editingNote?.privacy || 'public');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const allEmojis = [
@@ -156,38 +154,47 @@ export const NoteCreator = ({
 
     setIsSubmitting(true);
     try {
-      const noteData = {
-        type: 'text',
-        content: content.trim(),
-        location: draftLocation,
-        authorId: auth.currentUser.uid,
-        authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
-        visibility,
-        isPrivate: visibility !== 'public', // Unlisted and Private both set isPrivate to true
-        createdAt: editingNote ? editingNote.createdAt : serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        color,
-        emoji,
-        language
-      };
-
       if (editingNote) {
-        await updateDoc(doc(db, 'notes', editingNote.id), noteData);
+        // Only send fields that can be updated to follow best practices and respect security rules
+        const updates = {
+          content: content.trim(),
+          privacy,
+          updatedAt: serverTimestamp(),
+          color,
+          emoji,
+          language,
+          authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
+          location: draftLocation // Owner might update location slightly
+        };
+        await updateDoc(doc(db, 'notes', editingNote.id), updates);
       } else {
+        const noteData = {
+          type: 'text',
+          content: content.trim(),
+          location: draftLocation,
+          authorId: auth.currentUser.uid,
+          authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
+          privacy,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          color,
+          emoji,
+          language
+        };
         await addDoc(collection(db, 'notes'), noteData);
       }
       
       setContent('');
       onNoteCreated();
     } catch (error) {
-      handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, 'notes');
+      handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, editingNote ? `notes/${editingNote.id}` : 'notes');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getVisibilityConfig = (v: NoteVisibility) => {
-    switch (v) {
+  const getPrivacyConfig = (p: NotePrivacy) => {
+    switch (p) {
       case 'public':
         return {
           label: 'Public',
@@ -352,7 +359,7 @@ export const NoteCreator = ({
           <div className="px-1">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs font-bold text-stone-500">Visibility</span>
+                <span className="text-xs font-bold text-stone-500">Privacy</span>
                 <Tooltip.Provider>
                   <Tooltip.Root>
                     <Tooltip.Trigger asChild>
@@ -379,24 +386,24 @@ export const NoteCreator = ({
 
               <div className="relative group">
                 <select
-                  value={visibility}
-                  onChange={(e) => setVisibility(e.target.value as NoteVisibility)}
-                  className={`w-fit pl-8 pr-8 py-2 rounded-xl border appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 text-xs font-bold cursor-pointer transition-all ${getVisibilityConfig(visibility).color}`}
+                  value={privacy}
+                  onChange={(e) => setPrivacy(e.target.value as NotePrivacy)}
+                  className={`w-fit pl-8 pr-8 py-2 rounded-xl border appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 text-xs font-bold cursor-pointer transition-all ${getPrivacyConfig(privacy).color}`}
                 >
                   <option value="public">Public</option>
                   <option value="unlisted">Unlisted</option>
                   <option value="private">Private</option>
                 </select>
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  {getVisibilityConfig(visibility).icon}
+                  {getPrivacyConfig(privacy).icon}
                 </div>
               </div>
             </div>
           </div>
-          {/* Visibility Helper Text */}
+          {/* Privacy Helper Text */}
           <p className="text-[10px] text-stone-400 px-1 font-medium flex items-center gap-1.5 pt-1">
-            {getVisibilityConfig(visibility).icon}
-            {getVisibilityConfig(visibility).desc}
+            {getPrivacyConfig(privacy).icon}
+            {getPrivacyConfig(privacy).desc}
           </p>
         </div>
 

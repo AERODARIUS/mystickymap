@@ -35,14 +35,10 @@
           "type": "string",
           "description": "The display name of the user who created the note."
         },
-        "visibility": {
+        "privacy": {
           "type": "string",
           "enum": ["public", "unlisted", "private"],
-          "description": "The visibility level of the note."
-        },
-        "isPrivate": {
-          "type": "boolean",
-          "description": "DEPRECATED: Use visibility instead."
+          "description": "The privacy level of the note."
         },
         "createdAt": {
           "type": "string",

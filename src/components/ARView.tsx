@@ -96,9 +96,9 @@ export const ARView = ({
                           <UserIcon className="w-3 h-3" />
                         )}
                         <span className="text-[10px] font-semibold truncate max-w-[80px]">{note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}</span>
-                        {(note.visibility === 'private' || note.isPrivate) && <Lock className="w-3 h-3 text-white/80" />}
-                        {note.visibility === 'unlisted' && <Link className="w-3 h-3 text-white/80" />}
-                        {(note.visibility === 'public' || (!note.visibility && !note.isPrivate)) && <Globe className="w-3 h-3 text-white/80" />}
+                        {note.privacy === 'private' && <Lock className="w-3 h-3 text-white/80" />}
+                        {note.privacy === 'unlisted' && <Link className="w-3 h-3 text-white/80" />}
+                        {note.privacy === 'public' && <Globe className="w-3 h-3 text-white/80" />}
                       </div>
                       <p className="text-sm font-medium line-clamp-4">{note.content}</p>
                     </div>

@@ -134,12 +134,12 @@ export const MapMarkers = ({
                 <p className="text-[8px] text-stone-400 uppercase tracking-tighter">{t('anchor.created_by')}</p>
                 <p className="text-[10px] font-bold text-stone-900 truncate">{user && selectedNote.authorId === user.uid ? t('qr.view.you') : (selectedNote.authorName || 'Explorer')}</p>
               </div>
-              {selectedNote.visibility === 'private' || selectedNote.isPrivate ? (
+              {selectedNote.privacy === 'private' ? (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-bold">
                   <Lock className="w-2.5 h-2.5" />
                   {t('creator.private')}
                 </div>
-              ) : selectedNote.visibility === 'unlisted' ? (
+              ) : selectedNote.privacy === 'unlisted' ? (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-bold">
                   <Link className="w-2.5 h-2.5" />
                   UNLISTED
