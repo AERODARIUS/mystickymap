@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, Compass, QrCode } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
@@ -163,10 +163,20 @@ export const AnchorView = ({
                     </div>
 
                     <div className="p-4 rounded-2xl bg-stone-50 text-stone-700 text-sm leading-relaxed" style={{ borderLeft: `4px solid ${note.color}` }}>
-                      {note.isPrivate && (
+                      {note.visibility === 'private' || note.isPrivate ? (
                         <div className="inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-bold">
-                          <Compass className="w-2.5 h-2.5" />
+                          <Lock className="w-2.5 h-2.5" />
                           {t('creator.private')}
+                        </div>
+                      ) : note.visibility === 'unlisted' ? (
+                        <div className="inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-bold">
+                          <Link className="w-2.5 h-2.5" />
+                          UNLISTED
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold">
+                          <Globe className="w-2.5 h-2.5" />
+                          {t('creator.public')}
                         </div>
                       )}
                       {note.type === 'text' ? (
@@ -178,14 +188,14 @@ export const AnchorView = ({
                         </div>
                       )}
                       
-                      <div className="flex items-center justify-between mt-4">
+                      <div className="flex flex-wrap items-center justify-start gap-3 mt-4">
                         {note.language && (
                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded text-[9px] font-bold text-stone-500 uppercase tracking-wider">
                             <Languages className="w-2.5 h-2.5" />
                             {SUPPORTED_LANGUAGES.find(l => l.code === note.language)?.label || note.language}
                           </div>
                         )}
-                        <div className="flex items-center gap-2 ml-auto">
+                        <div className="flex items-center gap-2 flex-wrap justify-start">
                           <button 
                             onClick={() => onFocusNote(note)}
                             className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"

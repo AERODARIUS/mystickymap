@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { User as UserIcon, EyeOff, Share2, Check, X, QrCode } from 'lucide-react';
+import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import { Note } from '../types';
@@ -126,7 +126,8 @@ export const QRNotesView = ({
                       <span className="text-xs font-bold truncate max-w-[150px]">
                         {scannedNote.authorId === user?.uid ? t('qr.view.you') : (scannedNote.authorName || 'Explorer')}
                       </span>
-                      {scannedNote.isPrivate && <EyeOff className="w-4 h-4 text-white/80" />}
+                      { (scannedNote.visibility === 'private' || scannedNote.isPrivate) && <EyeOff className="w-4 h-4 text-white/80" /> }
+                      { scannedNote.visibility === 'unlisted' && <Link className="w-4 h-4 text-white/80" /> }
                     </div>
                     <p className="text-lg font-handwriting leading-relaxed italic">
                       "{scannedNote.content}"

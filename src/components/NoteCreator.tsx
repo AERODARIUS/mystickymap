@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { X, Languages, EyeOff, Eye, Mic, Square, Send, Smile } from 'lucide-react';
+import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { Note, SUPPORTED_LANGUAGES } from '../types';
+import { Note, SUPPORTED_LANGUAGES, NoteVisibility } from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 const RecognitionConstructor = (typeof window !== 'undefined') 
   ? ((window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).SpeechRecognition || (window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).webkitSpeechRecognition) 
@@ -32,7 +33,9 @@ export const NoteCreator = ({
   const { flags } = useFeatureFlags();
   const [content, setContent] = useState(editingNote?.content || '');
   const [language, setLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
-  const [isPrivate, setIsPrivate] = useState(editingNote?.isPrivate ?? false);
+  const [visibility, setVisibility] = useState<NoteVisibility>(
+    editingNote?.visibility || (editingNote?.isPrivate ? 'private' : 'public')
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const allEmojis = [
@@ -159,7 +162,8 @@ export const NoteCreator = ({
         location: draftLocation,
         authorId: auth.currentUser.uid,
         authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
-        isPrivate,
+        visibility,
+        isPrivate: visibility !== 'public', // Unlisted and Private both set isPrivate to true
         createdAt: editingNote ? editingNote.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp(),
         color,
@@ -182,8 +186,34 @@ export const NoteCreator = ({
     }
   };
 
+  const getVisibilityConfig = (v: NoteVisibility) => {
+    switch (v) {
+      case 'public':
+        return {
+          label: 'Public',
+          icon: <Globe className="w-3.5 h-3.5" />,
+          color: 'bg-emerald-50 border-emerald-100 text-emerald-600',
+          desc: 'Discoverable by everyone on map and AR.'
+        };
+      case 'unlisted':
+        return {
+          label: 'Unlisted',
+          icon: <Link className="w-3.5 h-3.5" />,
+          color: 'bg-amber-50 border-amber-100 text-amber-600',
+          desc: 'Hidden from public discovery, but shareable via link or QR.'
+        };
+      case 'private':
+        return {
+          label: 'Private',
+          icon: <Lock className="w-3.5 h-3.5" />,
+          color: 'bg-rose-50 border-rose-100 text-rose-600',
+          desc: 'Only visible to you.'
+        };
+    }
+  };
+
   return (
-    <div className="bg-white p-6 rounded-t-3xl shadow-2xl border-t border-stone-100">
+    <div className="bg-white p-6 pb-10 rounded-t-3xl shadow-2xl border-t border-stone-100">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <h3 className="font-bold text-stone-900 whitespace-nowrap">
@@ -240,7 +270,7 @@ export const NoteCreator = ({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
-            className={`w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-40 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
+            className={`w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-32 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
             maxLength={flags.maxNoteLength}
           />
           
@@ -275,30 +305,17 @@ export const NoteCreator = ({
         </div>
 
         {/* Controls and Stats below Textarea */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={`text-xs font-mono font-medium px-2 py-2 rounded-xl border transition-colors ${
-              content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
-            }`}>
-              {content.length} / {flags.maxNoteLength}
-            </span>
+        <div className="space-y-4">
+          {/* Row 1: Char Count, Mic, Language */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-mono font-medium px-3 py-2 rounded-xl border transition-colors ${
+                content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
+              }`}>
+                {content.length} / {flags.maxNoteLength}
+              </span>
 
-            <button
-              type="button"
-              onClick={() => setIsPrivate(!isPrivate)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold ${
-                isPrivate 
-                  ? 'bg-rose-50 border-rose-100 text-rose-600' 
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-              }`}
-            >
-              {isPrivate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {isPrivate ? t('creator.private') : t('creator.public')}
-            </button>
-
-            {isSpeechSupported && (
-              <>
-                <div className="w-full h-0" />
+              {isSpeechSupported && (
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
@@ -314,28 +331,79 @@ export const NoteCreator = ({
                     <Mic className="w-5 h-5" />
                   )}
                 </button>
-              </>
-            )}
+              )}
 
-            <div className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
-              <Languages className="w-4 h-4 text-stone-400" />
-              <select 
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="text-xs bg-transparent outline-none font-medium text-stone-600 appearance-none cursor-pointer pr-1"
-              >
-                {SUPPORTED_LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code}>{lang.label}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
+                <Languages className="w-4 h-4 text-stone-400" />
+                <select 
+                   value={language}
+                   onChange={(e) => setLanguage(e.target.value)}
+                   className="text-xs bg-transparent outline-none font-medium text-stone-600 appearance-none cursor-pointer pr-1"
+                >
+                   {SUPPORTED_LANGUAGES.map(lang => (
+                     <option key={lang.code} value={lang.code}>{lang.label}</option>
+                   ))}
+                </select>
+              </div>
             </div>
           </div>
+
+          {/* Row 2: Visibility */}
+          <div className="px-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs font-bold text-stone-500">Visibility</span>
+                <Tooltip.Provider>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger asChild>
+                      <button type="button" className="p-1 text-stone-400 hover:text-stone-600 outline-none">
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content 
+                        className="bg-stone-900 text-white p-3 rounded-xl shadow-xl text-xs max-w-xs z-[100] animate-in fade-in zoom-in-95 duration-200"
+                        sideOffset={5}
+                      >
+                        <div className="space-y-2">
+                          <p><span className="font-bold text-emerald-400">Public:</span> Discoverable by everyone.</p>
+                          <p><span className="font-bold text-amber-400">Unlisted:</span> Hidden from public discovery but shareable via direct link or QR code.</p>
+                          <p><span className="font-bold text-rose-400">Private:</span> Completely restricted to you.</p>
+                        </div>
+                        <Tooltip.Arrow className="fill-stone-900" />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              </div>
+
+              <div className="relative group">
+                <select
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value as NoteVisibility)}
+                  className={`w-fit pl-8 pr-8 py-2 rounded-xl border appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 text-xs font-bold cursor-pointer transition-all ${getVisibilityConfig(visibility).color}`}
+                >
+                  <option value="public">Public</option>
+                  <option value="unlisted">Unlisted</option>
+                  <option value="private">Private</option>
+                </select>
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {getVisibilityConfig(visibility).icon}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Visibility Helper Text */}
+          <p className="text-[10px] text-stone-400 px-1 font-medium flex items-center gap-1.5 pt-1">
+            {getVisibilityConfig(visibility).icon}
+            {getVisibilityConfig(visibility).desc}
+          </p>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting || !content.trim()}
-          className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="w-fit px-10 py-3 bg-stone-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95"
         >
           {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
           {isSubmitting ? t('creator.dropping') : t('creator.drop_note_here')}

@@ -101,8 +101,33 @@ export default function App() {
       const targetNote = notes.find(n => n.id === noteIdFromUrl);
       if (targetNote) {
         hasHandledUrlNote.current = true;
-        // Defer state update to avoid cascading render lint error
         setTimeout(() => setSelectedNote(targetNote), 0);
+      } else {
+        // If not in the discovery list, try to fetch it directly (might be Unlisted)
+        import('./firebase').then(async ({ db, handleFirestoreError, OperationType }) => {
+          const { doc, getDoc } = await import('firebase/firestore');
+          try {
+            const docSnap = await getDoc(doc(db, 'notes', noteIdFromUrl));
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              let visibility = data.visibility;
+              if (!visibility) {
+                visibility = data.isPrivate ? 'private' : 'public';
+              }
+              const fetchedNote = {
+                id: docSnap.id,
+                ...data,
+                visibility
+              } as Note;
+
+              // Security rules will block this if it's Private and we're not the owner
+              hasHandledUrlNote.current = true;
+              setTimeout(() => setSelectedNote(fetchedNote), 0);
+            }
+          } catch (error) {
+            handleFirestoreError(error, OperationType.GET, `notes/${noteIdFromUrl}`);
+          }
+        });
       }
     }
   }, [notes, isAuthReady]);
@@ -115,7 +140,14 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => auth.signOut();
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      window.location.reload();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   if (!hasValidKey) return <SplashScreen />;
 
@@ -130,7 +162,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <APIProvider apiKey={API_KEY} version="weekly">
-        <div className="relative w-full h-screen bg-stone-50 font-sans overflow-hidden">
+        <div className="relative w-full h-[100dvh] bg-stone-50 font-sans overflow-hidden">
           {/* Main View */}
           <div className="absolute inset-0">
             {view === 'map' ? (

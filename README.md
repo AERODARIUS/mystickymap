@@ -12,7 +12,7 @@
 ### 2. 📝 Creative Note Dropping
 - **Voice-to-Text**: Don't want to type? Use the integrated speech recognition to dictate your thoughts directly into the map.
 - **Custom Styling**: Choose from a palette of vibrant colors to make your notes stand out.
-- **Privacy First**: Toggle between **Public** notes for the world to see, or **Private** notes for your own personal geo-reminders.
+- **Visibility Control**: Choose between **Public** (visible to all), **Unlisted** (hidden from discovery but shareable via link/QR), or **Private** (strictly for you) geo-reminders.
 
 ### 3. 🔗 Sharing & Connectivity
 - **Permanent Links**: Each note generates a unique URL. Share the link, and others can teleport directly to that note on the map.

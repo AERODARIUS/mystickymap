@@ -2,7 +2,7 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Languages, Pencil, Trash2, Check, Share2, Compass, FileText, QrCode } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechButton } from './SpeechButton';
@@ -134,10 +134,20 @@ export const MapMarkers = ({
                 <p className="text-[8px] text-stone-400 uppercase tracking-tighter">{t('anchor.created_by')}</p>
                 <p className="text-[10px] font-bold text-stone-900 truncate">{user && selectedNote.authorId === user.uid ? t('qr.view.you') : (selectedNote.authorName || 'Explorer')}</p>
               </div>
-              {selectedNote.isPrivate && (
+              {selectedNote.visibility === 'private' || selectedNote.isPrivate ? (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-bold">
-                  <Compass className="w-2.5 h-2.5" />
+                  <Lock className="w-2.5 h-2.5" />
                   {t('creator.private')}
+                </div>
+              ) : selectedNote.visibility === 'unlisted' ? (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-bold">
+                  <Link className="w-2.5 h-2.5" />
+                  UNLISTED
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold">
+                  <Globe className="w-2.5 h-2.5" />
+                  {t('creator.public')}
                 </div>
               )}
             </div>
@@ -154,7 +164,7 @@ export const MapMarkers = ({
               )}
             </div>
             <div className="mt-4">
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-wrap items-center justify-start gap-3">
                 <SpeechButton 
                   text={selectedNote.content || ''} 
                   language={selectedNote.language}

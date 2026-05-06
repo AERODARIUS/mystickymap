@@ -48,13 +48,15 @@ service cloud.firestore {
     // ===============================================================
     
     function isValidNote(data) {
-      return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'isPrivate', 'authorName', 'content']) &&
-             data.keys().size() <= 12 && 
+      return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content']) &&
+             (data.keys().hasAll(['visibility']) || data.keys().hasAll(['isPrivate'])) &&
+             data.keys().size() <= 13 && 
              data.type in ['text', 'audio'] &&
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() <= 100 &&
              data.location is map && data.location.lat is number && data.location.lng is number &&
-             data.isPrivate is bool &&
+             (!('visibility' in data) || (data.visibility is string && data.visibility in ['public', 'unlisted', 'private'])) &&
+             (!('isPrivate' in data) || data.isPrivate is bool) &&
              data.createdAt is timestamp &&
              (!('content' in data) || (data.content is string && data.content.size() <= 1000)) &&
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 500 && data.audioUrl.matches("^https://.*"))) &&
@@ -78,8 +80,17 @@ service cloud.firestore {
     // ===============================================================
 
     match /notes/{noteId} {
-      allow get: if isValidId(noteId) && (existing().isPrivate == false || isOwner(existing().authorId) || isAdmin());
-      allow list: if (resource.data.isPrivate == false || (isSignedIn() && resource.data.authorId == request.auth.uid)) || isAdmin();
+      allow get: if isValidId(noteId) && (
+        existing().get('visibility', 'public') in ['public', 'unlisted'] || 
+        existing().get('isPrivate', false) == false ||
+        isOwner(existing().authorId) || 
+        isAdmin()
+      );
+      allow list: if (
+        resource.data.get('visibility', 'public') == 'public' || 
+        resource.data.get('isPrivate', false) == false ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid)
+      );
       
       allow create: if isVerifiedUser() && 
                        isValidNote(incoming()) && 
@@ -92,7 +103,7 @@ service cloud.firestore {
                        incoming().authorId == existing().authorId && 
                        incoming().createdAt == existing().createdAt && 
                        incoming().updatedAt == request.time &&
-                       affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'isPrivate', 'authorName']);
+                       affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'isPrivate', 'authorName', 'visibility']);
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());
     }
@@ -115,6 +126,10 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow write: if false; 
+    }
+
+    match /test/connection {
+      allow get: if true;
     }
   }
 }

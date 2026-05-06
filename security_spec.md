@@ -4,7 +4,10 @@
 - **Identity Integrity**: `authorId` on `notes` must strictly match `request.auth.uid`.
 - **Relational Integrity**: Notes are top-level but linked to users via `authorId`.
 - **Immutability**: `authorId` and `createdAt` on notes are immutable after creation.
-- **Privacy Core**: `isPrivate` notes must be readable ONLY by the author or admins.
+- **Visibility Model**: 
+    - `public`: Discovery (list) and fetching (get) allowed for everyone.
+    - `unlisted`: Fetching (get) allowed for everyone via ID, but hidden from discovery (list).
+    - `private`: Both discovery and fetching restricted to author and admins.
 - **Input Validation**: `content` must be within 1-1000 chars. `location` must be a valid lat/lng map.
 - **RBAC**: `role` in `/users/{userId}` can only be set by admins.
 

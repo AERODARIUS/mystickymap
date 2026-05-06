@@ -162,7 +162,7 @@ export const NavigationUI = ({
       )}
 
       {/* Bottom Controls / Note Creator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-6 pointer-events-none">
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-6 pointer-events-none">
         <AnimatePresence mode="wait">
           {(isCreating || editingNote) ? (
             <motion.div 
@@ -209,7 +209,7 @@ export const NavigationUI = ({
                   setIsCreating(true);
                   setView('map');
                 }}
-                className="group flex items-center gap-3 px-8 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-stone-800 transition-all scale-110 active:scale-105"
+                className="group flex items-center gap-3 px-8 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-stone-800 transition-all hover:scale-105 active:scale-95"
               >
                 <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform" />
                 <span className="font-bold">{t('nav.drop_note')}</span>

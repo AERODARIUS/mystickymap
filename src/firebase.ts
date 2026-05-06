@@ -1,13 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getRemoteConfig, fetchAndActivate, getValue } from 'firebase/remote-config';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Firestore with experimental long polling for better compatibility in AI Studio preview
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, firebaseConfig.firestoreDatabaseId);
+
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const remoteConfig = getRemoteConfig(app);
@@ -74,10 +79,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 async function testConnection() {
   try {
+    // Attempt to verify connection without alarming logs for transient network issues
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. ");
+    // Only log warning if it's clearly a configuration issue, not just a temporary "offline" state
+    if (error instanceof Error) {
+      const isPermissionError = error.message.includes('permission-denied') || 
+                               error.message.includes('Missing or insufficient permissions');
+      
+      if (isPermissionError) {
+        console.warn("Firestore access denied. Please check your security rules at /firestore.rules or verify you are authenticated if required.");
+      } else if (!error.message.includes('the client is offline')) {
+        console.error("Firestore connection error:", error.message);
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { User as UserIcon, EyeOff, Pencil, Share2, Check, Compass } from 'lucide-react';
+import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../types';
@@ -96,7 +96,9 @@ export const ARView = ({
                           <UserIcon className="w-3 h-3" />
                         )}
                         <span className="text-[10px] font-semibold truncate max-w-[80px]">{note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}</span>
-                        {note.isPrivate && <EyeOff className="w-3 h-3 text-white/80" />}
+                        {(note.visibility === 'private' || note.isPrivate) && <Lock className="w-3 h-3 text-white/80" />}
+                        {note.visibility === 'unlisted' && <Link className="w-3 h-3 text-white/80" />}
+                        {(note.visibility === 'public' || (!note.visibility && !note.isPrivate)) && <Globe className="w-3 h-3 text-white/80" />}
                       </div>
                       <p className="text-sm font-medium line-clamp-4">{note.content}</p>
                     </div>

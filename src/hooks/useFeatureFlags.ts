@@ -37,6 +37,8 @@ export function useFeatureFlags() {
         };
 
         // Fetch and activate
+        // Use a timeout or handle network failures gracefully as Remote Config fetch 
+        // can be blocked in some preview/iframe environments
         await fetchAndActivate(remoteConfig);
 
         // Get values
@@ -49,7 +51,13 @@ export function useFeatureFlags() {
           highlightNoteColor: getValue(remoteConfig, 'highlight_note_color').asString(),
         });
       } catch (error) {
-        console.error('Error fetching remote config:', error);
+        // Only log if it's not a standard fetch failure (which happens often in iframes)
+        if (error instanceof Error && !error.message.includes('fetch-client-network')) {
+          console.error('Error fetching remote config:', error);
+        } else {
+          // Silent fallback to defaults for network errors in sandboxed environments
+          console.info('Remote config fetch bypassed, using default feature flags.');
+        }
       } finally {
         setLoading(false);
       }

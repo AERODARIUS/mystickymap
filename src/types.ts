@@ -37,6 +37,8 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 
 export const MAX_NOTE_LENGTH = 1000;
 
+export type NoteVisibility = 'public' | 'unlisted' | 'private';
+
 export interface Note {
   id: string;
   type: 'text' | 'audio';
@@ -45,7 +47,8 @@ export interface Note {
   location: { lat: number; lng: number };
   authorId: string;
   authorName: string;
-  isPrivate: boolean;
+  visibility: NoteVisibility;
+  isPrivate?: boolean; // Keep for backward compatibility
   createdAt: Timestamp;
   color?: string;
   emoji?: string;
