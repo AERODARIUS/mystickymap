@@ -12,28 +12,60 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['favicon.ico', 'icon-512.svg'],
         manifest: {
           name: 'My Sticky Map',
           short_name: 'StickyMap',
-          description: 'AR + Geolocation notes in the real world',
+          description: 'Augmented reality notes at physical locations',
           theme_color: '#3B82F6',
+          background_color: '#ffffff',
+          display: 'standalone',
+          orientation: 'portrait',
+          start_url: '/',
+          scope: '/',
+          categories: ['navigation', 'social', 'travel'],
+          launch_handler: {
+            client_mode: ['navigate-existing', 'auto']
+          },
           icons: [
             {
               src: 'icon-512.svg',
               sizes: '512x512',
               type: 'image/svg+xml',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: 'icon-512.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'maskable'
             }
           ],
-          display: 'standalone',
-          orientation: 'portrait',
-          background_color: '#ffffff',
-          start_url: '/',
-          scope: '/',
+          shortcuts: [
+            {
+              name: 'AR View',
+              short_name: 'AR',
+              url: '/?view=ar',
+              description: 'Open map in Augmented Reality view'
+            },
+            {
+              name: 'New Note',
+              short_name: 'New',
+              url: '/?action=new',
+              description: 'Drop a new sticky note'
+            }
+          ],
+          screenshots: [
+            {
+              src: 'icon-512.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              form_factor: 'narrow'
+            }
+          ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/maps\.googleapis\.com/,
@@ -50,15 +82,19 @@ export default defineConfig(({mode}) => {
               },
             },
             {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com/,
-              handler: 'StaleWhileRevalidate',
+              urlPattern: /^https:\/\/fonts\.gstatic\.com/,
+              handler: 'CacheFirst',
               options: {
-                cacheName: 'google-fonts-stylesheets',
-              },
+                cacheName: 'google-fonts-webfonts',
+                expiration: {
+                  maxEntries: 20,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                }
+              }
             },
             {
               urlPattern: /^https:\/\/firestore\.googleapis\.com/,
-              handler: 'NetworkOnly', // Firestore has its own offline persistence
+              handler: 'NetworkOnly',
             }
           ]
         }

@@ -22,10 +22,18 @@ export function useInstallPrompt() {
       setIsInstallable(true);
     };
 
+    const installHandler = () => {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      console.log('PWA was installed');
+    };
+
     window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installHandler);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installHandler);
     };
   }, []);
 
