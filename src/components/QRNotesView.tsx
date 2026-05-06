@@ -31,6 +31,11 @@ export const QRNotesView = ({
   const qrRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-reader";
 
+  const notesRef = useRef(notes);
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
   useEffect(() => {
     const html5QrCode = new Html5Qrcode(scannerId);
     qrRef.current = html5QrCode;
@@ -45,20 +50,20 @@ export const QRNotesView = ({
           },
           async (decodedText) => {
             // Process QR code text
-            let noteId = decodedText;
+            let noteId = decodedText.trim();
             let isMalformed = false;
             try {
-              if (decodedText.startsWith('http')) {
-                const url = new URL(decodedText);
+              if (noteId.startsWith('http')) {
+                const url = new URL(noteId);
                 const idFromUrl = url.searchParams.get('noteId');
                 if (idFromUrl) {
-                  noteId = idFromUrl;
+                  noteId = idFromUrl.trim();
                 } else {
                   isMalformed = true;
                 }
               } else {
                 // If it's not a URL, check simple length constraint
-                if (!decodedText || decodedText.length < 5 || decodedText.length > 100) {
+                if (!noteId || noteId.length < 5 || noteId.length > 100) {
                   isMalformed = true;
                 }
               }
@@ -69,16 +74,20 @@ export const QRNotesView = ({
             if (isMalformed) {
               setScanError(true);
               setIsScanning(false);
-              html5QrCode.pause();
+              if (html5QrCode.getState() === 2) {
+                html5QrCode.pause();
+              }
               return;
             }
 
-            const note = notes.find(n => n.id === noteId);
+            const note = notesRef.current.find(n => n.id === noteId);
             if (note) {
               setScannedNote(note);
               setScanError(false);
               setIsScanning(false);
-              html5QrCode.pause();
+              if (html5QrCode.getState() === 2) {
+                html5QrCode.pause();
+              }
             } else {
               // Not in shared notes list, try fetching directly (e.g. Unlisted notes)
               try {
@@ -93,22 +102,30 @@ export const QRNotesView = ({
                   if (isNotePrivate && !isMine) {
                     setScanError(true);
                     setIsScanning(false);
-                    html5QrCode.pause();
+                    if (html5QrCode.getState() === 2) {
+                      html5QrCode.pause();
+                    }
                   } else {
                     setScannedNote({ id: docSnap.id, ...data } as Note);
                     setScanError(false);
                     setIsScanning(false);
-                    html5QrCode.pause();
+                    if (html5QrCode.getState() === 2) {
+                      html5QrCode.pause();
+                    }
                   }
                 } else {
                   setScanError(true);
                   setIsScanning(false);
-                  html5QrCode.pause();
+                  if (html5QrCode.getState() === 2) {
+                    html5QrCode.pause();
+                  }
                 }
               } catch (err) {
                 setScanError(true);
                 setIsScanning(false);
-                html5QrCode.pause();
+                if (html5QrCode.getState() === 2) {
+                  html5QrCode.pause();
+                }
                 console.error("Error fetching note:", err);
               }
             }
@@ -140,7 +157,7 @@ export const QRNotesView = ({
         html5QrCode.stop().catch(err => console.error("Error stopping QR scanner:", err));
       }
     };
-  }, [notes, user?.uid]);
+  }, [user?.uid]);
 
   const resumeScanning = () => {
     setScannedNote(null);
@@ -202,7 +219,7 @@ export const QRNotesView = ({
                 onClick={resumeScanning}
                 className="px-6 py-2 bg-white text-red-600 rounded-full font-bold hover:bg-gray-100 transition-colors"
               >
-                {t('anchor.no_notes').split('...')[0]}...
+                {t('qr.view.retry')}
               </button>
             </motion.div>
           )}

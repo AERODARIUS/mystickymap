@@ -52,7 +52,8 @@ const resources = {
           captured_via: "Captured via QR",
           share_link: "Share link",
           you: "You",
-          not_found: "The note does not exist, is private or has been deleted.",
+          not_found: "The note could not be found. It might be private, deleted, or the QR code is invalid.",
+          retry: "Scan Again",
           toggle_torch: "Toggle Light"
         }
       },
@@ -131,7 +132,8 @@ const resources = {
           captured_via: "Capturado vía QR",
           share_link: "Compartir enlace",
           you: "Tú",
-          not_found: "La nota no existe, es privada o ha sido eliminada.",
+          not_found: "No se pudo encontrar la nota. Puede ser privada, haber sido eliminada o el código QR es inválido.",
+          retry: "Escanear de nuevo",
           toggle_torch: "Alternar luz"
         }
       },

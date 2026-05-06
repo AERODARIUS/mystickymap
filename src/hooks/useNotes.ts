@@ -30,13 +30,20 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newNotes = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-        } as Note;
-      });
+      const seenIds = new Set<string>();
+      const newNotes = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+          } as Note;
+        })
+        .filter(note => {
+          if (seenIds.has(note.id)) return false;
+          seenIds.add(note.id);
+          return true;
+        });
       setNotes(newNotes);
       setLoading(false);
     }, (error) => {

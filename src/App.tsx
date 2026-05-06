@@ -92,7 +92,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthReady || notes.length === 0 || hasHandledUrlNote.current) return;
+    if (!isAuthReady || hasHandledUrlNote.current) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     const noteIdFromUrl = urlParams.get('noteId');
@@ -103,8 +103,9 @@ export default function App() {
         hasHandledUrlNote.current = true;
         setTimeout(() => setSelectedNote(targetNote), 0);
       } else {
-        // If not in the discovery list, try to fetch it directly (might be Unlisted)
-        import('./firebase').then(async ({ db, handleFirestoreError, OperationType }) => {
+        // Even if we have other notes, this one isn't in the list
+        // If not in the discovery list (e.g. Unlisted or out of range), try to fetch it directly
+        import('./firebase').then(async ({ db }) => {
           const { doc, getDoc } = await import('firebase/firestore');
           try {
             const docSnap = await getDoc(doc(db, 'notes', noteIdFromUrl));
@@ -119,8 +120,9 @@ export default function App() {
               hasHandledUrlNote.current = true;
               setTimeout(() => setSelectedNote(fetchedNote), 0);
             }
-          } catch (error) {
-            handleFirestoreError(error, OperationType.GET, `notes/${noteIdFromUrl}`);
+          } catch {
+            // Silently fail if not found or no permission
+            console.debug("Note from URL not accessible:", noteIdFromUrl);
           }
         });
       }

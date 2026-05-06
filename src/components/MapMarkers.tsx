@@ -103,7 +103,7 @@ export const MapMarkers = ({
         </AdvancedMarker>
       )}
 
-      {notes.map(note => (
+      {notes.filter(n => n.id !== editingNote?.id).map(note => (
         <AdvancedMarker 
           key={note.id} 
           position={note.location}
