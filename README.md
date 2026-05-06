@@ -1,108 +1,112 @@
 # My Sticky Map 📍✨
 
-**My Sticky Map** is an innovative augmented reality (AR) social application that allows users to "stick" digital notes to physical locations in the real world. By combining real-time geolocation with AR visualization and speech technology, it creates a persistent layer of digital messages on top of the physical environment.
+**My Sticky Map** is an innovative augmented reality (AR) social application that allows users to "stick" digital notes to physical locations in the real world. By combining real-time geolocation with AR visualization, speech technology, and QR sharing, it creates a persistent layer of digital messages on top of the physical environment.
 
 ---
 
-## 📱 Progressive Web App (PWA)
+## 📱 Progressive Web App (PWA) Capabilities
 
-My Sticky Map is built as a high-performance **Progressive Web App**, providing a native-like experience directly through your browser.
+My Sticky Map is engineered as a high-performance **Progressive Web App**, providing a native-like experience optimized for mobile utility and offline resilience.
 
-### Supported PWA Features
-- **Installability**: Add to your home screen for quick access and full-screen immersion.
-- **Offline Resilience**: Essential app assets and previously viewed maps are cached using Service Workers.
-- **Standalone Mode**: Runs in its own window without browser navigation UI for a true "App" feel.
-- **Dynamic Shortcuts**: Long-press the app icon (on supported platforms) to jump directly to **AR View** or **Drop a Note**.
-- **Background Persistence**: Leverages Firestore offline persistence to store your notes locally when connection is lost, syncing them automatically when you're back online.
+### Core PWA Features
+- **One-Tap Installation**: Add the app to your home screen for full-screen immersion, removing browser chrome and address bars.
+- **Offline First Architecture**: 
+  - **Service Workers**: Essential assets, map components, and core UI are cached for instant loading even without an internet connection.
+  - **Firestore Persistence**: Your notes and local data are stored in an on-device database. You can drop notes while offline; they will automatically sync to the cloud once you're back in range.
+- **App Shortcuts**: Long-press the icon on your home screen to jump directly to:
+  - 🎥 **AR View**: Instant camera calibration and note discovery.
+  - ➕ **Drop a Note**: Quick-entry mode for leaving a mark at your current position.
+- **Background Sync**: Ensures data integrity during intermittent connectivity common in urban exploring.
+- **Standalone Display**: Native look-and-feel with defined theme colors and splash screens.
 
 ### How to Install
 
 #### Mobile (iOS & Android)
-1.  Open the app in your mobile browser (Safari for iOS, Chrome for Android).
+1.  Open the app in your mobile browser.
 2.  **iOS**: Tap the **Share** button and select **"Add to Home Screen"**.
-3.  **Android**: Tap the **"Install"** banner at the bottom or the three-dot menu and select **"Install App"**.
+3.  **Android**: Look for the **"Install My Sticky Map"** prompt or select **"Install App"** from the browser menu.
 
 #### Desktop
--   Click the **Install Icon** in the URL bar (Chrome/Edge) or use the custom **Install UI** within the app.
-
-### Offline Capabilities & Limitations
--   **Works Offline**: You can browse previously loaded notes and view cached areas of the map.
--   **Limited Offline**: Dynamic updates (newly dropped notes by others) and high-resolution map tiles for new areas require a data connection.
--   **Drafting**: You can drop notes while offline; they will be saved to local storage and published to the cloud once a connection is restored.
+-   Click the **Install Icon** in the right side of the address bar (Chrome/Edge) to run Sticky Map as a standalone desktop application.
 
 ---
 
 ## 🚀 Key Features
 
-### 1. 🌍 Multiple Viewing Perspectives
-- **Map View**: A sleek, interactive 2D map powered by Google Maps.
-- **AR View**: Use your camera and compass to see notes "floating" in the air.
-- **Nearby (Anchor) View**: List of notes sorted by distance.
+### 1. 🌍 Perspectives & Discovery
+- **2D Map View**: Interactive exploration of notes worldwide powered by Google Maps.
+- **AR (Augmented Reality) View**: A heads-up display showing notes floating at their real-world coordinates relative to your camera.
+- **Anchor View**: A location-aware list view showing notes sorted by "proximity to you," perfect for finding hidden gems nearby.
 
-### 2. 📝 Creative Note Dropping
-- **Voice-to-Text**: Dictate your thoughts using the integrated speech recognition.
-- **Custom Styling**: Vibrant color palette for personalization.
-- **Visibility Control**: Public, Unlisted, or Private notes.
+### 2. 📝 Advanced Note Creation
+- **Voice Dictation**: Tap the microphone to convert your thoughts into text instantly using the Web Speech API.
+- **Dynamic Styling**: Color-code your notes to match the mood or message.
+- **Privacy Tiers**: 
+  - **Public**: Visible to everyone on the map and AR view.
+  - **Unlisted**: Only accessible via direct link or QR code.
+  - **Private**: Secured for your eyes only.
 
-### 3. 🎙️ High Accessibility
-- **Listen Out Loud**: Every note can be read aloud using text-to-speech.
-- **Multilingual Support**: Supports over 9 languages with native playback.
+### 3. 🏁 QR Integration & Sharing
+- **QR Scanners**: Built-in scanner to instantly reveal hidden "Unlisted" notes found on physical stickers or signs.
+- **QR Generation**: Every note can generate its own unique QR code, allowing you to bridge the physical-digital gap.
+
+### 4. 🎙️ Accessibility & Localization
+- **Text-to-Speech**: Have the app read notes aloud to you—ideal for eyes-up navigation.
+- **Multilingual Support**: Fully localized in **English, Spanish, French, and Portuguese** with automatic language detection.
 
 ---
 
 ## 📱 Permissions Required
-To provide the full experience, this app requires:
-- **Location**: Required for placing notes and showing your position accurately.
-- **Camera**: Required for the Augmented Reality (AR) view mode.
-- **Microphone**: Required for voice-to-text dictation.
-- **Motion/Orientation**: Required for the AR compass and directional accuracy.
 
-### Known Limitations (iOS Safari)
--   **Motion Permissions**: iOS requires a manual user gesture to enable Device Orientation. The app will prompt you for this on the first AR view.
--   **Camera Permissions**: You must "Allow" camera access each session or save the app to your Home Screen to remember preferences.
+To provide the full AR and location experience, the app requires:
+- **Location**: To place and find notes at specific coordinates.
+- **Camera**: For the Augmented Reality view and QR scanning.
+- **Microphone**: For voice-to-text dictation.
+- **Motion/Orientation**: To orient the AR view correctly as you turn.
 
 ---
 
 ## 🛠️ Technology Stack
-- **Frontend**: React 18, Vite, Tailwind CSS
+
+- **Frontend**: React 19, Vite, Tailwind CSS
 - **PWA**: `vite-plugin-pwa` (Workbox)
 - **Maps**: @vis.gl/react-google-maps
-- **AR/Camera**: Web MediaDevices & DeviceOrientation APIs
+- **Backend/DB**: Firebase (Auth, Firestore, Hosting, Storage)
+- **Configuration**: Firebase Remote Config for dynamic feature toggling.
+- **QR Engine**: `html5-qrcode` & `qrcode.react`
 - **Animations**: `motion` (Framer Motion)
-- **Backend**: Firebase (Firestore, Auth, Hosting)
+- **Language**: `i18next`
 
 ---
 
 ## 👨‍💻 Developer Setup
 
 ### Running Locally with PWA Enabled
-The PWA service worker is built into the production build. To test the PWA features locally:
+PWA features like service workers are typically disabled in development to prevent caching issues. To test the full PWA experience:
 
-1.  **Clone & Install**:
+1.  **Install dependencies**:
     ```bash
     npm install
     ```
-2.  **Set Up Environment**:
-    Create a `.env` file with your `GEMINI_API_KEY` and `GOOGLE_MAPS_PLATFORM_KEY`.
+2.  **Set Environment Variables**:
+    Add `GEMINI_API_KEY` and `GOOGLE_MAPS_PLATFORM_KEY` to your secrets.
 3.  **Build & Preview**:
     ```bash
     npm run build
     npm run preview
     ```
-    *Note: PWA features (Service Workers) do not run in standard `npm run dev` mode to avoid caching issues during development.*
 
-### Testing Installability
--   Use Chrome DevTools (Application Tab > Manifest) to verify the manifest and trigger install prompts.
--   Use **Lighthouse** to run a PWA audit.
-
-### Deployment (Firebase Hosting)
-This app is optimized for Firebase Hosting.
-1.  Build the project: `npm run build`
-2.  Deploy: `firebase deploy --only hosting`
+### Deployment
+The project is configured for **Firebase Hosting**.
+```bash
+npm run build
+firebase deploy
+```
 
 ---
 
-## 📁 New File Structure
-- `/public/icon-512.svg`: The primary app icon used for manifest and splash screens.
-- `/vite.config.ts`: Configured with `VitePWA` for service worker generation and manifest management.
-- `src/hooks/useInstallPrompt.ts`: Custom hook for managing the PWA installation lifecycle.
+## 📁 Key Project Files
+- `/vite.config.ts`: Main PWA manifest and caching strategy definition.
+- `src/hooks/useInstallPrompt.ts`: Logic for detecting and triggering the browser install prompt.
+- `public/icon-512.svg`: The master SVG asset for icons, splash screens, and favicons.
+
