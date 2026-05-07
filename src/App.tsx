@@ -58,6 +58,14 @@ export default function App() {
   const [commentNote, setCommentNote] = useState<Note | null>(null);
   const hasHandledUrlNote = useRef(false);
 
+  const handleEditNote = useCallback((note: Note | null) => {
+    setEditingNote(note);
+    if (note) {
+      if (note.color) setDraftColor(note.color);
+      if (note.emoji) setDraftEmoji(note.emoji);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const path = view === 'map' ? '/' : `/${view}`;
@@ -197,7 +205,7 @@ export default function App() {
                   copyStatus={copyStatus}
                   setDraftLocation={setDraftLocation}
                   setSelectedNote={setSelectedNote}
-                  setEditingNote={setEditingNote}
+                  setEditingNote={handleEditNote}
                   copyToClipboard={copyToClipboard}
                   onGenerateQRCode={(id) => setQrCodeNoteId(id)}
                   onShowComments={setCommentNote}
@@ -210,7 +218,7 @@ export default function App() {
                 heading={heading} 
                 user={user}
                 setView={setView}
-                setEditingNote={setEditingNote}
+                setEditingNote={handleEditNote}
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onShowComments={setCommentNote}
@@ -220,7 +228,7 @@ export default function App() {
                 notes={notes}
                 userLocation={userLocation}
                 user={user}
-                setEditingNote={setEditingNote}
+                setEditingNote={handleEditNote}
                 onFocusNote={handleFocusNote}
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
@@ -250,7 +258,7 @@ export default function App() {
             setView={setView}
             setIsTrackingLocation={setIsTrackingLocation}
             setIsCreating={setIsCreating}
-            setEditingNote={setEditingNote}
+            setEditingNote={handleEditNote}
             setDraftColor={setDraftColor}
             setDraftEmoji={setDraftEmoji}
             handleLogin={handleLogin}
