@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -43,12 +43,12 @@ function sanitizePayload(payload: unknown): Record<string, unknown> {
 /**
  * Persists error to Cloud Logging and Firestore
  */
-export const logError = onCall({
+export const logError = onCall<ErrorPayload>({
   cors: true,
   maxInstances: 10,
-}, async (request) => {
+}, async (request: CallableRequest<ErrorPayload>) => {
   const userId = request.auth?.uid || "anonymous";
-  const rawPayload = request.data as ErrorPayload;
+  const rawPayload = request.data;
 
   if (!rawPayload.message || !rawPayload.severity) {
     throw new HttpsError("invalid-argument", "Message and severity are required.");
@@ -58,7 +58,7 @@ export const logError = onCall({
 
   // 1. Structured Cloud Logging
   logger.write({
-    severity: String(sanitized.severity || 'error').toUpperCase(),
+    severity: String(sanitized.severity || 'error').toUpperCase() as any,
     message: String(sanitized.message),
     stack: sanitized.stack,
     userId,
