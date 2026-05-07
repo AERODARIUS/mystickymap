@@ -13,9 +13,23 @@ export interface LogMetadata {
 }
 
 class Logger {
-  private functions = getFunctions();
-  private logErrorCallable = httpsCallable(this.functions, 'logError');
+  private _functions: ReturnType<typeof getFunctions> | null = null;
+  private _logErrorCallable: ReturnType<typeof httpsCallable> | null = null;
   private isLogging = false;
+
+  private getFunctionsInstance() {
+    if (!this._functions) {
+      this._functions = getFunctions();
+    }
+    return this._functions;
+  }
+
+  private getLogErrorCallable() {
+    if (!this._logErrorCallable) {
+      this._logErrorCallable = httpsCallable(this.getFunctionsInstance(), 'logError');
+    }
+    return this._logErrorCallable;
+  }
 
   /**
    * Normalizes an error object into a serializable format
@@ -75,7 +89,8 @@ class Logger {
       console[consoleMethod](`[Logger:${severity}] ${message}`, { error, metadata, payload });
 
       // Send to backend
-      await this.logErrorCallable(payload);
+      const logErrorCallable = this.getLogErrorCallable();
+      await logErrorCallable(payload);
     } catch (err) {
       // Gracefully fail if logging fails
       console.warn('Logging utility failed to report error:', err);
