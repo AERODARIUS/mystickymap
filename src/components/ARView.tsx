@@ -72,39 +72,67 @@ export const ARView = ({
           .sort((a, b) => b.distance - a.distance) // Farthest first, rendered first (bottom)
           .map(({ note, distance, relativeBearing }) => {
             const x = (relativeBearing / 45) * 50 + 50; // percentage
-            const scale = Math.max(0.2, (1 - (distance / 110)) * 2.5);
+            // Enhanced scale calculation for better depth
+            const scale = Math.max(0.3, Math.min(1.5, (1 - (distance / 100)) * 2));
             const zIndex = Math.floor(100 - distance);
+            
+            // Atmospheric perspective: more distance = more blur and less opacity
+            const blurAmount = Math.min(4, (distance / 40));
+            const opacity = Math.max(0.4, 1 - (distance / 100));
             
             return (
               <motion.div 
                 key={note.id}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale }}
-                className="absolute p-4 rounded-xl shadow-2xl border border-white/20 backdrop-blur-md text-white max-w-[200px] pointer-events-auto"
+                initial={{ opacity: 0, scale: 0, y: 20 }}
+                animate={{ 
+                  opacity, 
+                  scale,
+                  x: "-50%",
+                  y: "-50%",
+                  backdropFilter: `blur(${blurAmount + 8}px)`, // baseline blur of 8px
+                }}
+                transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+                className="absolute p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/30 text-white pointer-events-auto transition-colors duration-500"
                 style={{ 
                   left: `${x}%`, 
                   top: '40%',
-                  backgroundColor: note.color || 'rgba(16, 185, 129, 0.8)',
-                  transform: `translate(-50%, -50%)`,
-                  zIndex
+                  backgroundColor: note.color ? `${note.color}cc` : 'rgba(16, 185, 129, 0.6)',
+                  zIndex,
+                  maxWidth: 'min(300px, 85vw)', // Ensure it doesn't exceed 85% of device width
                 }}
               >
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5 mb-1.5 opacity-80">
-                        {note.emoji ? (
-                          <span className="text-sm">{note.emoji}</span>
-                        ) : (
-                          <UserIcon className="w-3 h-3" />
-                        )}
-                        <span className="text-[10px] font-semibold truncate max-w-[80px]">{note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}</span>
-                        {note.privacy === 'private' && <Lock className="w-3 h-3 text-white/80" />}
-                        {note.privacy === 'unlisted' && <Link className="w-3 h-3 text-white/80" />}
-                        {note.privacy === 'public' && <Globe className="w-3 h-3 text-white/80" />}
+                <motion.div 
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{
+                    duration: 3 + (note.id.charCodeAt(0) % 3),
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <div className="flex justify-between items-start gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 opacity-90">
+                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                          {note.emoji ? (
+                            <span className="text-xs">{note.emoji}</span>
+                          ) : (
+                            <UserIcon className="w-3 h-3" />
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold tracking-tight truncate">
+                          {note.authorId === user?.uid ? t('qr.view.you') : (note.authorName || 'Explorer')}
+                        </span>
+                        <div className="flex items-center gap-1 opacity-60">
+                          {note.privacy === 'private' && <Lock className="w-2.5 h-2.5" />}
+                          {note.privacy === 'unlisted' && <Link className="w-2.5 h-2.5" />}
+                          {note.privacy === 'public' && <Globe className="w-2.5 h-2.5" />}
+                        </div>
                       </div>
-                      <p className="text-sm font-medium line-clamp-4">{note.content}</p>
+                      <p className="text-[13px] leading-snug font-medium line-clamp-4 break-words">
+                        {note.content}
+                      </p>
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       {note.authorId === user?.uid && (
                         <button 
                           onClick={(e) => {
@@ -112,7 +140,7 @@ export const ARView = ({
                             setView('map');
                             setEditingNote(note);
                           }}
-                          className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all hover:scale-110"
+                          className="p-1.5 rounded-xl bg-white/20 text-white hover:bg-white/40 border border-white/10 transition-all hover:scale-110 active:scale-95"
                           title={t('ar.edit_note')}
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -124,7 +152,7 @@ export const ARView = ({
                           e.stopPropagation();
                           onShowComments(note);
                         }}
-                        className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all hover:scale-110"
+                        className="p-1.5 rounded-xl bg-white/20 text-white hover:bg-white/40 border border-white/10 transition-all hover:scale-110 active:scale-95"
                         title={t('comments.reply')}
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
@@ -134,14 +162,28 @@ export const ARView = ({
                           e.stopPropagation();
                           copyToClipboard(note.id);
                         }}
-                        className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all hover:scale-110"
+                        className="p-1.5 rounded-xl bg-white/20 text-white hover:bg-white/40 border border-white/10 transition-all hover:scale-110 active:scale-95"
                         title={t('qr.view.share_link')}
                       >
-                        {copyStatus === note.id ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                        {copyStatus === note.id ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
-                <p className="text-[10px] opacity-70">{Math.round(distance)}m {t('anchor.away')}</p>
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">
+                      {Math.round(distance)}m {t('anchor.away')}
+                    </p>
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
+                  </div>
+                </motion.div>
+                
+                {/* Visual anchor point shadow */}
+                <div 
+                  className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-white/30 blur-[1px]"
+                  style={{ opacity: 1 - (distance / 100) }}
+                >
+                  <div className="absolute inset-0 rounded-full animate-ping bg-white/20" />
+                </div>
               </motion.div>
             );
           })}
