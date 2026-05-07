@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
@@ -18,6 +18,7 @@ interface AnchorViewProps {
   copyToClipboard: (id: string) => void;
   copyStatus: string | null;
   onGenerateQRCode: (id: string) => void;
+  onShowComments: (note: Note) => void;
 }
 
 export const AnchorView = ({ 
@@ -28,7 +29,8 @@ export const AnchorView = ({
   onFocusNote,
   copyToClipboard,
   copyStatus,
-  onGenerateQRCode
+  onGenerateQRCode,
+  onShowComments
 }: AnchorViewProps) => {
   const { t } = useTranslation();
   const [radius, setRadius] = useState<number>(1000); // meters
@@ -208,6 +210,13 @@ export const AnchorView = ({
                             language={note.language}
                             className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5 rounded-full" 
                           />
+                          <button 
+                            onClick={() => onShowComments(note)}
+                            className="p-2.5 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-full transition-colors flex items-center justify-center"
+                            title={t('comments.reply')}
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
                           <button 
                             onClick={() => onGenerateQRCode(note.id)}
                             className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"

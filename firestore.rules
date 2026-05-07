@@ -73,6 +73,16 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    function isValidComment(data, noteId) {
+      return data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt', 'noteId']) &&
+             data.keys().size() == 5 &&
+             data.content is string && data.content.size() <= 500 &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             data.authorName is string && data.authorName.size() <= 100 &&
+             data.noteId is string && data.noteId == noteId &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -104,6 +114,30 @@ service cloud.firestore {
                        ));
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());
+
+      match /comments/{commentId} {
+        function getParentNote() {
+          return get(/databases/$(database)/documents/notes/$(noteId)).data;
+        }
+        function canInteractWithNote() {
+          let note = getParentNote();
+          return note.privacy in ['public', 'unlisted'] || isOwner(note.authorId) || isAdmin();
+        }
+
+        allow get: if isValidId(commentId) && canInteractWithNote();
+        allow list: if canInteractWithNote();
+        
+        allow create: if isVerifiedUser() && 
+                         isValidId(commentId) &&
+                         isValidComment(incoming(), noteId) &&
+                         incoming().createdAt == request.time &&
+                         canInteractWithNote();
+        
+        allow delete: if isValidId(commentId) && (
+          isOwner(existing().authorId) || 
+          isOwner(getParentNote().authorId)
+        );
+      }
     }
 
     match /users/{userId} {

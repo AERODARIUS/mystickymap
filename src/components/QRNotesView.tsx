@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link, Flashlight, AlertCircle, Globe } from 'lucide-react';
+import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link, Flashlight, AlertCircle, Globe, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import { Note } from '../types';
@@ -14,13 +14,15 @@ interface QRNotesViewProps {
   user: User | null;
   copyToClipboard: (id: string) => void;
   copyStatus: string | null;
+  onShowComments: (note: Note) => void;
 }
 
 export const QRNotesView = ({
   notes,
   user,
   copyToClipboard,
-  copyStatus
+  copyStatus,
+  onShowComments
 }: QRNotesViewProps) => {
   const { t } = useTranslation();
   const [scannedNote, setScannedNote] = useState<Note | null>(null);
@@ -262,6 +264,16 @@ export const QRNotesView = ({
                   </div>
                   <div className="flex flex-col gap-2">
                     <SpeechButton text={scannedNote.content || ''} language={scannedNote.language} />
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShowComments(scannedNote);
+                      }}
+                      className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all hover:scale-110"
+                      title={t('comments.reply')}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();

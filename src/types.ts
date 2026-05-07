@@ -36,8 +36,18 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 };
 
 export const MAX_NOTE_LENGTH = 1000;
+export const MAX_COMMENT_LENGTH = 500;
 
 export type NotePrivacy = 'public' | 'unlisted' | 'private';
+
+export interface Comment {
+  id: string;
+  noteId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: Timestamp;
+}
 
 export interface Note {
   id: string;

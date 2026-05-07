@@ -80,6 +80,18 @@ const resources = {
       speech: {
         stop: "Stop listening",
         listen: "Listen to note"
+      },
+      comments: {
+        title: "Discussion",
+        reply: "Reply",
+        placeholder: "Add a reply...",
+        no_comments: "No replies yet. Be the first to reply.",
+        send: "Send",
+        cancel: "Cancel",
+        delete: "Delete",
+        loading: "Loading discussion...",
+        error: "Failed to load comments",
+        character_limit: "Character limit reached"
       }
     }
   },
@@ -160,6 +172,18 @@ const resources = {
       speech: {
         stop: "Dejar de escuchar",
         listen: "Escuchar nota"
+      },
+      comments: {
+        title: "Discusión",
+        reply: "Responder",
+        placeholder: "Añadir una respuesta...",
+        no_comments: "Aún no hay respuestas. Sé el primero en responder.",
+        send: "Enviar",
+        cancel: "Cancelar",
+        delete: "Eliminar",
+        loading: "Cargando discusión...",
+        error: "Error al cargar comentarios",
+        character_limit: "Límite de caracteres alcanzado"
       }
     }
   },

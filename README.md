@@ -50,7 +50,12 @@ My Sticky Map is engineered as a high-performance **Progressive Web App**, provi
 - **QR Scanners**: Built-in scanner to instantly reveal hidden "Unlisted" notes found on physical stickers or signs.
 - **QR Generation**: Every note can generate its own unique QR code, allowing you to bridge the physical-digital gap.
 
-### 4. 🎙️ Accessibility & Localization
+### 4. 💬 Social & Interaction
+- **Discussions**: Reply to notes to start conversations linked to specific places.
+- **Inherited Privacy**: Comments automatically respect the parent note's visibility (Public, Unlisted, or Private).
+- **Mobile Optimized**: Smooth, bottom-sheet interaction for seamless mobile usage.
+
+### 5. 🎙️ Accessibility & Localization
 - **Text-to-Speech**: Have the app read notes aloud to you—ideal for eyes-up navigation.
 - **Multilingual Support**: Fully localized in **English, Spanish, French, and Portuguese** with automatic language detection.
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass } from 'lucide-react';
+import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass, MessageSquare } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../types';
@@ -15,7 +15,8 @@ export const ARView = ({
   setView, 
   setEditingNote,
   copyToClipboard,
-  copyStatus
+  copyStatus,
+  onShowComments
 }: { 
   notes: Note[], 
   userLocation: { lat: number, lng: number } | null, 
@@ -24,7 +25,8 @@ export const ARView = ({
   setView: (view: 'map' | 'ar' | 'anchor') => void,
   setEditingNote: (note: Note | null) => void,
   copyToClipboard: (id: string) => void,
-  copyStatus: string | null
+  copyStatus: string | null,
+  onShowComments: (note: Note) => void
 }) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -117,6 +119,16 @@ export const ARView = ({
                         </button>
                       )}
                       <SpeechButton text={note.content || ''} language={note.language} />
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onShowComments(note);
+                        }}
+                        className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all hover:scale-110"
+                        title={t('comments.reply')}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();

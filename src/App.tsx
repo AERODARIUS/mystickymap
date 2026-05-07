@@ -19,6 +19,7 @@ import { AnchorView } from './components/AnchorView';
 import { QRNotesView } from './components/QRNotesView';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
 import { InstallPrompt } from './components/InstallPrompt';
+import { CommentsView } from './components/CommentsView';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
@@ -54,6 +55,7 @@ export default function App() {
   const [draftLocation, setDraftLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
+  const [commentNote, setCommentNote] = useState<Note | null>(null);
   const hasHandledUrlNote = useRef(false);
 
   useEffect(() => {
@@ -198,6 +200,7 @@ export default function App() {
                   setEditingNote={setEditingNote}
                   copyToClipboard={copyToClipboard}
                   onGenerateQRCode={(id) => setQrCodeNoteId(id)}
+                  onShowComments={setCommentNote}
                 />
               </Map>
             ) : view === 'ar' ? (
@@ -210,6 +213,7 @@ export default function App() {
                 setEditingNote={setEditingNote}
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
+                onShowComments={setCommentNote}
               />
             ) : view === 'anchor' ? (
               <AnchorView 
@@ -221,6 +225,7 @@ export default function App() {
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onGenerateQRCode={(id) => setQrCodeNoteId(id)}
+                onShowComments={setCommentNote}
               />
             ) : (
               <QRNotesView 
@@ -228,6 +233,7 @@ export default function App() {
                 user={user}
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
+                onShowComments={setCommentNote}
               />
             )}
           </div>
@@ -257,6 +263,12 @@ export default function App() {
           noteId={qrCodeNoteId || ''} 
           isOpen={!!qrCodeNoteId} 
           onClose={() => setQrCodeNoteId(null)} 
+        />
+        <CommentsView
+          note={commentNote}
+          isOpen={!!commentNote}
+          user={user}
+          onClose={() => setCommentNote(null)}
         />
         <InstallPrompt />
       </APIProvider>

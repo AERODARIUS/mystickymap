@@ -75,12 +75,46 @@
         "role": { "type": "string", "enum": ["user", "admin"] },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "comments": {
+      "title": "Comment",
+      "description": "A reply or comment on a note.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "The text content of the comment."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "The UID of the user who created the comment."
+        },
+        "authorName": {
+          "type": "string",
+          "description": "The display name of the user who created the comment."
+        },
+        "noteId": {
+          "type": "string",
+          "description": "The ID of the parent note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the comment was created."
+        }
+      },
+      "required": ["content", "authorId", "authorName", "noteId", "createdAt"]
     }
   },
   "firestore": {
     "/notes/{noteId}": {
       "schema": "notes",
       "description": "Global collection of geolocated notes."
+    },
+    "/notes/{noteId}/comments/{commentId}": {
+      "schema": "comments",
+      "description": "Comments attached to a specific note."
     },
     "/users/{userId}": {
       "schema": "users",

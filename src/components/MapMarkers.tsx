@@ -2,7 +2,7 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechButton } from './SpeechButton';
@@ -26,6 +26,7 @@ interface MapMarkersProps {
   setEditingNote: (note: Note | null) => void;
   copyToClipboard: (id: string) => void;
   onGenerateQRCode: (id: string) => void;
+  onShowComments: (note: Note) => void;
 }
 
 export const MapMarkers = ({
@@ -43,7 +44,8 @@ export const MapMarkers = ({
   setSelectedNote,
   setEditingNote,
   copyToClipboard,
-  onGenerateQRCode
+  onGenerateQRCode,
+  onShowComments
 }: MapMarkersProps) => {
   const { t } = useTranslation();
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -170,6 +172,13 @@ export const MapMarkers = ({
                   language={selectedNote.language}
                   className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5" 
                 />
+                <button 
+                  onClick={() => onShowComments(selectedNote)}
+                  className="p-2.5 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-full transition-colors flex items-center justify-center"
+                  title={t('comments.reply')}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
                 <button 
                   onClick={() => onGenerateQRCode(selectedNote.id)}
                   className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"
