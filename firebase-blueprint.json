@@ -105,6 +105,37 @@
         }
       },
       "required": ["content", "authorId", "authorName", "noteId", "createdAt"]
+    },
+    "errorLogs": {
+      "title": "Error Log",
+      "description": "Captured application errors.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "error", "critical"] },
+        "source": { "type": "string" },
+        "route": { "type": "string" },
+        "browser": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "userId": { "type": "string" },
+        "appVersion": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "severity", "createdAt"]
+    },
+    "errorReportRuns": {
+      "title": "Error Report Run",
+      "description": "History of scheduled error report executions.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["success", "failure"] },
+        "errorsCount": { "type": "number" },
+        "error": { "type": "string" }
+      },
+      "required": ["timestamp", "status"]
     }
   },
   "firestore": {
@@ -119,6 +150,14 @@
     "/users/{userId}": {
       "schema": "users",
       "description": "User profiles restricted to owners."
+    },
+    "/errorLogs/{logId}": {
+      "schema": "errorLogs",
+      "description": "Centralized error logs (Backend write only)."
+    },
+    "/errorReportRuns/{runId}": {
+      "schema": "errorReportRuns",
+      "description": "History of daily report runs."
     }
   }
 }

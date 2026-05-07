@@ -26,6 +26,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 export { signInWithPopup, onAuthStateChanged, ref, uploadBytes, getDownloadURL, fetchAndActivate, getValue, Timestamp, serverTimestamp };
 
+import { logger } from './services/logger';
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -73,6 +75,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
+  
+  // Log the firestore error to the centralized backend
+  logger.error(`Firestore ${operationType} failed at ${path}`, error, { 
+    firestoreContext: errInfo 
+  });
+
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

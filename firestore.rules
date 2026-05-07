@@ -163,5 +163,15 @@ service cloud.firestore {
     match /test/connection {
       allow get: if true;
     }
+
+    match /errorLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Backend only
+    }
+
+    match /errorReportRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if false; // Backend only
+    }
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../services/logger';
 
 export const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
@@ -8,7 +9,14 @@ export const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
     const handleError = (event: ErrorEvent) => {
       setHasError(true);
       setErrorInfo(event.message);
+      
+      logger.critical('Uncaught window error in ErrorBoundary', event.error || event.message, {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
+      });
     };
+    
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
