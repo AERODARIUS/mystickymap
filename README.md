@@ -1,12 +1,12 @@
-# My Sticky Map 📍✨
+# Spotheon 📍✨
 
-**My Sticky Map** is an innovative augmented reality (AR) social application that allows users to "stick" digital notes to physical locations in the real world. By combining real-time geolocation with AR visualization, speech technology, and QR sharing, it creates a persistent layer of digital messages on top of the physical environment.
+**Spotheon** is an innovative augmented reality (AR) social application that allows users to "stick" digital notes to physical locations in the real world. By combining real-time geolocation with AR visualization, speech technology, and QR sharing, it creates a persistent layer of digital messages on top of the physical environment.
 
 ---
 
 ## 📱 Progressive Web App (PWA) Capabilities
 
-My Sticky Map is engineered as a high-performance **Progressive Web App**, providing a native-like experience optimized for mobile utility and offline resilience.
+Spotheon is engineered as a high-performance **Progressive Web App**, providing a native-like experience optimized for mobile utility and offline resilience.
 
 ### Core PWA Features
 - **One-Tap Installation**: Add the app to your home screen for full-screen immersion, removing browser chrome and address bars.
@@ -24,10 +24,10 @@ My Sticky Map is engineered as a high-performance **Progressive Web App**, provi
 #### Mobile (iOS & Android)
 1.  Open the app in your mobile browser.
 2.  **iOS**: Tap the **Share** button and select **"Add to Home Screen"**.
-3.  **Android**: Look for the **"Install My Sticky Map"** prompt or select **"Install App"** from the browser menu.
+3.  **Android**: Look for the **"Install Spotheon"** prompt or select **"Install App"** from the browser menu.
 
 #### Desktop
--   Click the **Install Icon** in the right side of the address bar (Chrome/Edge) to run Sticky Map as a standalone desktop application.
+-   Click the **Install Icon** in the right side of the address bar (Chrome/Edge) to run Spotheon as a standalone desktop application.
 
 ---
 
@@ -159,7 +159,7 @@ Follow these steps to receive email notifications when errors occur:
     severity>="ERROR"
     ```
 3.  Click **"Create Alert"** button above the logs results.
-4.  **Alert Name**: "Sticky Map Error Alert".
+4.  **Alert Name**: "Spotheon Error Alert".
 5.  **Documentation**: Describe the alert (e.g., "Notify when ERROR or CRITICAL logs are detected").
 6.  **Notification Channel**: Select the email channel you created in Step 1.
 7.  **Threshold**: Set "Threshold value" to `0` (or higher if you want to allow some noise).

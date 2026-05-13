@@ -1,4 +1,4 @@
-# Security Specification for My Sticky Map
+# Security Specification for Spotheon
 
 ## 1. Data Invariants
 - **Identity Integrity**: `authorId` on `notes` must strictly match `request.auth.uid`.

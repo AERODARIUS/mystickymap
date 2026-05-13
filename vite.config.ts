@@ -14,9 +14,9 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'icon-512.svg'],
         manifest: {
-          name: 'My Sticky Map',
-          short_name: 'StickyMap',
-          description: 'Augmented reality notes at physical locations',
+          name: 'Spotheon',
+          short_name: 'Spotheon',
+          description: 'The ultimate location-based AR experience',
           theme_color: '#3B82F6',
           background_color: '#ffffff',
           display: 'standalone',

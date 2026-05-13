@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { Note } from '../types';
 import { NoteCreator } from './NoteCreator';
+import { Logo } from './Logo';
 
 interface NavigationUIProps {
   user: User | null;
@@ -79,10 +80,10 @@ export const NavigationUI = ({
           <div className="relative">
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-3 bg-white text-stone-600 rounded-2xl shadow-lg border border-stone-100 hover:bg-stone-50 transition-all font-bold flex items-center gap-2"
+              className="pl-2 pr-4 py-2 bg-white text-stone-600 rounded-2xl shadow-lg border border-stone-100 hover:bg-stone-50 transition-all font-bold flex items-center gap-2"
               title={t('nav.change_view')}
             >
-              <ActiveIcon className="w-5 h-5 text-emerald-600" />
+              <Logo variant="icon" className="w-8 h-8" />
               <span className="text-xs font-black uppercase tracking-tight hidden sm:inline">
                 {viewOptions.find(opt => opt.id === view)?.label}
               </span>

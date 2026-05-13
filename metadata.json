@@ -1,6 +1,6 @@
 {
-  "name": "My Sticky Map",
-  "description": "An augmented reality app to see, create, and share geolocated notes in the real world with permanent links.",
+  "name": "Spotheon",
+  "description": "The ultimate location-based AR experience. Stick digital notes in the real world, explore your surroundings, and connect with your environment.",
   "requestFramePermissions": [
     "camera",
     "microphone",
