@@ -58,7 +58,7 @@ export const logError = onCall<ErrorPayload>({
 
   // 1. Structured Cloud Logging
   logger.write({
-    severity: String(sanitized.severity || 'error').toUpperCase() as any,
+    severity: String(sanitized.severity || 'error').toUpperCase() as "DEBUG" | "INFO" | "NOTICE" | "WARNING" | "ERROR" | "CRITICAL" | "ALERT" | "EMERGENCY",
     message: String(sanitized.message),
     stack: sanitized.stack,
     userId,

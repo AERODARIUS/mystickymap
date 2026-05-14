@@ -12,6 +12,7 @@ interface NavigationUIProps {
   user: User | null;
   view: 'map' | 'ar' | 'anchor' | 'qr';
   isTrackingLocation: boolean;
+  isPermissionDenied: boolean;
   isCreating: boolean;
   editingNote: Note | null;
   draftLocation: { lat: number; lng: number } | null;
@@ -32,6 +33,7 @@ export const NavigationUI = ({
   user,
   view,
   isTrackingLocation,
+  isPermissionDenied,
   isCreating,
   editingNote,
   draftLocation,
@@ -50,6 +52,7 @@ export const NavigationUI = ({
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLocationDeniedPrompt, setShowLocationDeniedPrompt] = useState(false);
 
   const viewOptions = useMemo(() => {
     const options: Array<{ id: 'map' | 'ar' | 'anchor' | 'qr'; label: string; icon: React.ElementType }> = [
@@ -68,8 +71,6 @@ export const NavigationUI = ({
 
     return options;
   }, [t, flags.enableARView, flags.enableQRScanner]);
-
-  const ActiveIcon = viewOptions.find(opt => opt.id === view)?.icon || Map;
 
   return (
     <>
@@ -119,7 +120,14 @@ export const NavigationUI = ({
           </div>
 
           <button 
-            onClick={() => setIsTrackingLocation(!isTrackingLocation)}
+            onClick={() => {
+              if (!isTrackingLocation && isPermissionDenied) {
+                setShowLocationDeniedPrompt(true);
+                setTimeout(() => setShowLocationDeniedPrompt(false), 5000);
+              } else {
+                setIsTrackingLocation(!isTrackingLocation);
+              }
+            }}
             className={`p-3 rounded-2xl shadow-lg border transition-all font-bold flex items-center gap-2 ${
               isTrackingLocation ? 'bg-white text-emerald-600 border-stone-100' : 'bg-stone-100 text-stone-400 border-stone-200'
             }`}
@@ -137,6 +145,32 @@ export const NavigationUI = ({
           </button>
         )}
       </div>
+
+      {/* Location Denied Prompt */}
+      <AnimatePresence>
+        {showLocationDeniedPrompt && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className="absolute top-24 left-1/2 w-full max-w-sm px-6 z-[60] pointer-events-none"
+          >
+            <div className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl pointer-events-auto flex items-center gap-3">
+              <LocateOff className="w-6 h-6 shrink-0" />
+              <div>
+                <p className="text-xs font-bold leading-tight">Location access denied</p>
+                <p className="text-[10px] opacity-90 mt-0.5">Please enable location permissions in your browser settings to use auto-positioning.</p>
+              </div>
+              <button 
+                onClick={() => setShowLocationDeniedPrompt(false)}
+                className="ml-auto p-1 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Login Prompt */}
       {!user && (

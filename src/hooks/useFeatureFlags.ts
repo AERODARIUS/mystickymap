@@ -51,12 +51,18 @@ export function useFeatureFlags() {
           highlightNoteColor: getValue(remoteConfig, 'highlight_note_color').asString(),
         });
       } catch (error) {
-        // Only log if it's not a standard fetch failure (which happens often in iframes)
-        if (error instanceof Error && !error.message.includes('fetch-client-network')) {
-          console.error('Error fetching remote config:', error);
-        } else {
-          // Silent fallback to defaults for network errors in sandboxed environments
-          console.info('Remote config fetch bypassed, using default feature flags.');
+        // Only log if it's not a standard fetch failure or a configuration issue
+        if (error instanceof Error) {
+          const is403 = error.message.includes('403') || error.message.includes('remoteconfig/fetch-status');
+          const isNetworkError = error.message.includes('fetch-client-network');
+
+          if (is403) {
+            console.warn('Remote Config fetch returned 403. This usually means the Remote Config API is not enabled in your Google Cloud Project or you haven\'t created the configuration in the Firebase Console yet. Using default feature flags.');
+          } else if (!isNetworkError) {
+            console.error('Error fetching remote config:', error.message);
+          } else {
+            console.info('Remote config fetch bypassed (network), using default feature flags.');
+          }
         }
       } finally {
         setLoading(false);

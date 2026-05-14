@@ -56,6 +56,7 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
   const [commentNote, setCommentNote] = useState<Note | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const hasHandledUrlNote = useRef(false);
 
   const handleEditNote = useCallback((note: Note | null) => {
@@ -77,7 +78,12 @@ export default function App() {
 
   // Custom Hooks
   const { notes } = useNotes(user, isAuthReady);
-  const { userLocation, heading } = useLocation(isTrackingLocation);
+  
+  const handlePermissionDenied = useCallback(() => {
+    setIsTrackingLocation(false);
+  }, []);
+
+  const { userLocation, heading, isPermissionDenied } = useLocation(isTrackingLocation, handlePermissionDenied);
 
   const copyToClipboard = useCallback((id: string) => {
     const url = new URL(window.location.origin + window.location.pathname);
@@ -140,10 +146,17 @@ export default function App() {
   }, [notes, isAuthReady]);
 
   const handleLogin = async () => {
+    setLoginError(null);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Login failed:", error);
+      const firebaseError = error as { code?: string; message?: string };
+      if (firebaseError.code === 'auth/unauthorized-domain') {
+        setLoginError(`This domain (${window.location.hostname}) is not authorized. Please add it to your Firebase Console > Authentication > Settings > Authorized domains.`);
+      } else {
+        setLoginError("Login failed: " + (firebaseError.message || "Unknown error"));
+      }
     }
   };
 
@@ -250,6 +263,7 @@ export default function App() {
             user={user}
             view={view}
             isTrackingLocation={isTrackingLocation}
+            isPermissionDenied={isPermissionDenied}
             isCreating={isCreating}
             editingNote={editingNote}
             draftLocation={draftLocation}
@@ -265,6 +279,24 @@ export default function App() {
             handleLogout={handleLogout}
             heading={heading}
           />
+
+          {/* Login Error Toast */}
+          {loginError && (
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-xs px-4 z-[70]">
+              <div className="bg-red-600 text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 text-sm">
+                <div className="flex-1">
+                  <p className="font-bold">Authentication Error</p>
+                  <p className="opacity-90 text-xs mt-1">{loginError}</p>
+                </div>
+                <button 
+                  onClick={() => setLoginError(null)}
+                  className="p-1 hover:bg-white/10 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <QRCodeDisplay 
