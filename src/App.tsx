@@ -152,8 +152,14 @@ export default function App() {
     } catch (error) {
       console.error("Login failed:", error);
       const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code === 'auth/unauthorized-domain') {
-        setLoginError(`This domain (${window.location.hostname}) is not authorized. Please add it to your Firebase Console > Authentication > Settings > Authorized domains.`);
+      const errorMessage = firebaseError.message || "";
+      
+      if (firebaseError.code === 'auth/unauthorized-domain' || errorMessage.includes('auth/requests-from-referer')) {
+        const domain = window.location.origin;
+        setLoginError(
+          `Domain Blocked: This environment's URL (${domain}) is not allowlisted in your Google Cloud / Firebase config. ` +
+          `Please follow these steps: 1. Go to your Google Cloud Console > APIs & Services > Credentials. 2. Find the API Key. 3. Add "${domain}/*" to "Website restrictions". 4. Also check Firebase Console > Authentication > Settings > Authorized domains.`
+        );
       } else {
         setLoginError("Login failed: " + (firebaseError.message || "Unknown error"));
       }
