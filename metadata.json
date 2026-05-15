@@ -1,6 +1,6 @@
 {
   "name": "Spotheon",
-  "description": "The ultimate location-based AR experience. Stick digital notes in the real world, explore your surroundings, and connect with your environment.",
+  "description": "The ultimate location-based social experience. Stick digital notes in the real world, explore your surroundings, and connect safely with community moderation and reporting tools.",
   "requestFramePermissions": [
     "camera",
     "microphone",

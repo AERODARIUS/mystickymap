@@ -20,6 +20,7 @@ import { QRNotesView } from './components/QRNotesView';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
 import { InstallPrompt } from './components/InstallPrompt';
 import { CommentsView } from './components/CommentsView';
+import { ReportModal } from './components/ReportModal';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
@@ -56,6 +57,7 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
   const [commentNote, setCommentNote] = useState<Note | null>(null);
+  const [reportNote, setReportNote] = useState<Note | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const hasHandledUrlNote = useRef(false);
 
@@ -228,6 +230,7 @@ export default function App() {
                   copyToClipboard={copyToClipboard}
                   onGenerateQRCode={(id) => setQrCodeNoteId(id)}
                   onShowComments={setCommentNote}
+                  onReportNote={setReportNote}
                 />
               </Map>
             ) : view === 'ar' ? (
@@ -241,6 +244,7 @@ export default function App() {
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onShowComments={setCommentNote}
+                onReportNote={setReportNote}
               />
             ) : view === 'anchor' ? (
               <AnchorView 
@@ -253,6 +257,7 @@ export default function App() {
                 copyStatus={copyStatus}
                 onGenerateQRCode={(id) => setQrCodeNoteId(id)}
                 onShowComments={setCommentNote}
+                onReportNote={setReportNote}
               />
             ) : (
               <QRNotesView 
@@ -261,6 +266,7 @@ export default function App() {
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onShowComments={setCommentNote}
+                onReportNote={setReportNote}
               />
             )}
           </div>
@@ -315,6 +321,12 @@ export default function App() {
           isOpen={!!commentNote}
           user={user}
           onClose={() => setCommentNote(null)}
+        />
+        <ReportModal
+          isOpen={!!reportNote}
+          onClose={() => setReportNote(null)}
+          noteId={reportNote?.id || ''}
+          user={user}
         />
         <InstallPrompt />
       </APIProvider>

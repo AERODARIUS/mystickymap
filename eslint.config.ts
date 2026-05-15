@@ -35,7 +35,8 @@ export default tseslint.config(
       '@firebase/security-rules': firebaseRulesPlugin,
     },
     rules: {
-      ...firebaseRulesPlugin.configs['flat/recommended'].rules,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...firebaseRulesPlugin.configs['flat/recommended'].rules as any,
     },
   }
 );

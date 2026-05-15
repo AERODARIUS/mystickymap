@@ -42,6 +42,12 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
         .filter(note => {
           if (seenIds.has(note.id)) return false;
           seenIds.add(note.id);
+          
+          // Filter out removed or pending review notes
+          // Allow author to see their own notes even if pending
+          const isHidden = note.moderationState === 'removed' || (note.moderationState === 'pending_review' && note.authorId !== user?.uid);
+          if (isHidden) return false;
+
           return true;
         });
       setNotes(newNotes);

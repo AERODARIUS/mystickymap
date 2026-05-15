@@ -2,7 +2,7 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { SpeechButton } from './SpeechButton';
@@ -27,6 +27,7 @@ interface MapMarkersProps {
   copyToClipboard: (id: string) => void;
   onGenerateQRCode: (id: string) => void;
   onShowComments: (note: Note) => void;
+  onReportNote: (note: Note) => void;
 }
 
 export const MapMarkers = ({
@@ -45,7 +46,8 @@ export const MapMarkers = ({
   setEditingNote,
   copyToClipboard,
   onGenerateQRCode,
-  onShowComments
+  onShowComments,
+  onReportNote
 }: MapMarkersProps) => {
   const { t } = useTranslation();
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -192,6 +194,13 @@ export const MapMarkers = ({
                   title={t('anchor.share_link')}
                 >
                   {copyStatus === selectedNote.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+                </button>
+                <button 
+                  onClick={() => onReportNote(selectedNote)}
+                  className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full transition-colors flex items-center justify-center"
+                  title="Report Note"
+                >
+                  <AlertTriangle className="w-4 h-4" />
                 </button>
                 {user && selectedNote.authorId === user.uid && (
                   <>

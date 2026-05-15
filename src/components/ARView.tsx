@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass, MessageSquare } from 'lucide-react';
+import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass, MessageSquare, AlertTriangle } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../types';
@@ -26,7 +26,8 @@ export const ARView = ({
   setEditingNote: (note: Note | null) => void,
   copyToClipboard: (id: string) => void,
   copyStatus: string | null,
-  onShowComments: (note: Note) => void
+  onShowComments: (note: Note) => void,
+  onReportNote: (note: Note) => void
 }) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -166,6 +167,16 @@ export const ARView = ({
                         title={t('qr.view.share_link')}
                       >
                         {copyStatus === note.id ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5" />}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReportNote(note);
+                        }}
+                        className="p-1.5 rounded-xl bg-rose-500/20 text-rose-200 hover:bg-rose-500/40 border border-white/10 transition-all hover:scale-110 active:scale-95"
+                        title="Report Note"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
