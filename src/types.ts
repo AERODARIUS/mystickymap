@@ -40,6 +40,8 @@ export const MAX_COMMENT_LENGTH = 500;
 
 export type NotePrivacy = 'public' | 'unlisted' | 'private';
 
+export type ModerationState = 'visible' | 'pending_review' | 'removed';
+
 export interface Comment {
   id: string;
   noteId: string;
@@ -62,6 +64,18 @@ export interface Note {
   color?: string;
   emoji?: string;
   language?: string;
+  moderationState?: ModerationState;
+}
+
+export interface NoteReport {
+  id: string;
+  noteId?: string;
+  commentId?: string;
+  reporterId: string;
+  reason: 'spam' | 'harassment' | 'hate_speech' | 'nsfw' | 'threat' | 'other';
+  details?: string;
+  createdAt: Timestamp;
+  status: 'pending' | 'resolved' | 'dismissed';
 }
 
 export const SUPPORTED_LANGUAGES = [

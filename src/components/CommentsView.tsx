@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send, Trash2, MessageSquare, Clock } from 'lucide-react';
+import { X, Send, Trash2, MessageSquare, Clock, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
-import { Note, MAX_COMMENT_LENGTH } from '../types';
+import { Note, MAX_COMMENT_LENGTH, Comment } from '../types';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useComments } from '../hooks/useComments';
 
 interface CommentsViewProps {
@@ -11,10 +12,13 @@ interface CommentsViewProps {
   isOpen: boolean;
   user: User | null;
   onClose: () => void;
+  onReportComment: (comment: Comment) => void;
+  onReportNote: (note: Note) => void;
 }
 
-export const CommentsView = ({ note, isOpen, user, onClose }: CommentsViewProps) => {
+export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onReportNote }: CommentsViewProps) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { comments, loading, addComment, deleteComment } = useComments(note?.id || null, user);
@@ -81,8 +85,17 @@ export const CommentsView = ({ note, isOpen, user, onClose }: CommentsViewProps)
             </div>
 
             {/* Note Context */}
-            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100">
-              <p className="text-sm text-stone-600 line-clamp-2 italic">"{note.content}"</p>
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4">
+              <p className="text-sm text-stone-600 line-clamp-2 italic flex-1">"{note.content}"</p>
+              {user && note.authorId !== user.uid && flags.enableModeration && (
+                <button 
+                  onClick={() => onReportNote(note)}
+                  className="p-2 text-stone-300 hover:text-amber-500 transition-colors"
+                  title="Report Note"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Comments List */}
@@ -116,9 +129,18 @@ export const CommentsView = ({ note, isOpen, user, onClose }: CommentsViewProps)
                           {user && (comment.authorId === user.uid || note.authorId === user.uid) && (
                             <button 
                               onClick={() => deleteComment(comment.id)}
-                              className="p-1 text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1 text-stone-300 hover:text-red-500 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {user && flags.enableModeration && (
+                            <button 
+                              onClick={() => onReportComment(comment)}
+                              className="p-1 text-stone-300 hover:text-amber-500 transition-colors"
+                              title="Report Comment"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>

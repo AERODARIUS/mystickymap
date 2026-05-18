@@ -41,6 +41,27 @@
       },
       "valueType": "STRING",
       "description": "The color used for highlighting markers and active UI elements."
+    },
+    "enable_moderation": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Enables the user-facing report buttons and moderation system."
+    },
+    "enable_admin_hub": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Toggles the visibility of the Moderation/Admin Hub for authorized users."
+    },
+    "risk_score_threshold": {
+      "defaultValue": {
+        "value": "40"
+      },
+      "valueType": "NUMBER",
+      "description": "The risk score threshold at which content is automatically flagged for review."
     }
   }
 }

@@ -20,11 +20,15 @@ import { QRNotesView } from './components/QRNotesView';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
 import { InstallPrompt } from './components/InstallPrompt';
 import { CommentsView } from './components/CommentsView';
+import { ReportModal } from './components/ReportModal';
+import { AdminDashboard } from './components/AdminDashboard';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
+import { useAdmin } from './hooks/useAdmin';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useLocation } from './hooks/useLocation';
-import { Note } from './types';
+import { Note, Comment } from './types';
 
 const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'undefined' && API_KEY !== '';
@@ -56,6 +60,9 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
   const [commentNote, setCommentNote] = useState<Note | null>(null);
+  const [reportingNote, setReportingNote] = useState<Note | null>(null);
+  const [reportingComment, setReportingComment] = useState<Comment | null>(null);
+  const [showAdminHub, setShowAdminHub] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const hasHandledUrlNote = useRef(false);
 
@@ -78,6 +85,8 @@ export default function App() {
 
   // Custom Hooks
   const { notes } = useNotes(user, isAuthReady);
+  const { flags } = useFeatureFlags();
+  const { isAdmin } = useAdmin(user);
   
   const handlePermissionDenied = useCallback(() => {
     setIsTrackingLocation(false);
@@ -228,6 +237,7 @@ export default function App() {
                   copyToClipboard={copyToClipboard}
                   onGenerateQRCode={(id) => setQrCodeNoteId(id)}
                   onShowComments={setCommentNote}
+                  onReportNote={setReportingNote}
                 />
               </Map>
             ) : view === 'ar' ? (
@@ -284,6 +294,8 @@ export default function App() {
             handleLogin={handleLogin}
             handleLogout={handleLogout}
             heading={heading}
+            isAdmin={isAdmin && flags.enableAdminHub}
+            onOpenAdmin={() => setShowAdminHub(true)}
           />
 
           {/* Login Error Toast */}
@@ -315,7 +327,19 @@ export default function App() {
           isOpen={!!commentNote}
           user={user}
           onClose={() => setCommentNote(null)}
+          onReportComment={(c) => setReportingComment(c)}
+          onReportNote={(n) => setReportingNote(n)}
         />
+        <ReportModal
+          note={reportingNote || (reportingComment ? commentNote : null)}
+          comment={reportingComment}
+          user={user}
+          onClose={() => {
+            setReportingNote(null);
+            setReportingComment(null);
+          }}
+        />
+        {showAdminHub && <AdminDashboard onClose={() => setShowAdminHub(false)} />}
         <InstallPrompt />
       </APIProvider>
     </ErrorBoundary>

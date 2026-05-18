@@ -2,9 +2,10 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { SpeechButton } from './SpeechButton';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -27,6 +28,7 @@ interface MapMarkersProps {
   copyToClipboard: (id: string) => void;
   onGenerateQRCode: (id: string) => void;
   onShowComments: (note: Note) => void;
+  onReportNote: (note: Note) => void;
 }
 
 export const MapMarkers = ({
@@ -45,9 +47,11 @@ export const MapMarkers = ({
   setEditingNote,
   copyToClipboard,
   onGenerateQRCode,
-  onShowComments
+  onShowComments,
+  onReportNote
 }: MapMarkersProps) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
@@ -193,25 +197,38 @@ export const MapMarkers = ({
                 >
                   {copyStatus === selectedNote.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
                 </button>
-                {user && selectedNote.authorId === user.uid && (
+                {user && (
                   <>
-                    <button 
-                      onClick={() => {
-                        setEditingNote(selectedNote);
-                        setSelectedNote(null);
-                      }}
-                      className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"
-                      title={t('anchor.edit_note')}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setDeleteId(selectedNote.id)}
-                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors flex items-center justify-center"
-                      title={t('anchor.delete_note')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {selectedNote.authorId === user.uid && (
+                      <button 
+                        onClick={() => {
+                          setEditingNote(selectedNote);
+                          setSelectedNote(null);
+                        }}
+                        className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"
+                        title={t('anchor.edit_note')}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {selectedNote.authorId === user.uid && (
+                      <button 
+                        onClick={() => setDeleteId(selectedNote.id)}
+                        className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors flex items-center justify-center"
+                        title={t('anchor.delete_note')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {flags.enableModeration && (
+                      <button 
+                        onClick={() => onReportNote(selectedNote)}
+                        className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-full transition-colors flex items-center justify-center"
+                        title="Report Note"
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                      </button>
+                    )}
                   </>
                 )}
               </div>

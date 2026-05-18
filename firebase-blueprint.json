@@ -61,6 +61,11 @@
         "language": {
           "type": "string",
           "description": "The language code of the note (e.g., 'en-US', 'es-ES')."
+        },
+        "moderationState": {
+          "type": "string",
+          "enum": ["visible", "pending_review", "removed"],
+          "description": "The current moderation status of the note. Defaults to visible."
         }
       },
       "required": ["type", "location", "authorId", "createdAt"]
@@ -136,6 +141,20 @@
         "error": { "type": "string" }
       },
       "required": ["timestamp", "status"]
+    },
+    "reports": {
+      "title": "Note Report",
+      "description": "A user-submitted report for a note.",
+      "type": "object",
+      "properties": {
+        "noteId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reason": { "type": "string", "enum": ["spam", "harassment", "hate_speech", "nsfw", "threat", "other"] },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] }
+      },
+      "required": ["noteId", "reporterId", "reason", "createdAt", "status"]
     }
   },
   "firestore": {
@@ -146,6 +165,10 @@
     "/notes/{noteId}/comments/{commentId}": {
       "schema": "comments",
       "description": "Comments attached to a specific note."
+    },
+    "/reports/{reportId}": {
+      "schema": "reports",
+      "description": "Moderation reports submitted by users."
     },
     "/users/{userId}": {
       "schema": "users",

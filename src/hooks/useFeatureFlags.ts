@@ -8,6 +8,9 @@ export interface FeatureFlags {
   enableEmojiPins: boolean;
   maxNoteLength: number;
   highlightNoteColor: string;
+  enableModeration: boolean;
+  enableAdminHub: boolean;
+  riskScoreThreshold: number;
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -17,6 +20,9 @@ const DEFAULT_FLAGS: FeatureFlags = {
   enableEmojiPins: true,
   maxNoteLength: 500,
   highlightNoteColor: '#10b981', // Emerald 500
+  enableModeration: true,
+  enableAdminHub: true,
+  riskScoreThreshold: 40,
 };
 
 export function useFeatureFlags() {
@@ -34,6 +40,9 @@ export function useFeatureFlags() {
           enable_emoji_pins: DEFAULT_FLAGS.enableEmojiPins,
           max_note_length: DEFAULT_FLAGS.maxNoteLength,
           highlight_note_color: DEFAULT_FLAGS.highlightNoteColor,
+          enable_moderation: DEFAULT_FLAGS.enableModeration,
+          enable_admin_hub: DEFAULT_FLAGS.enableAdminHub,
+          risk_score_threshold: DEFAULT_FLAGS.riskScoreThreshold,
         };
 
         // Fetch and activate
@@ -49,6 +58,9 @@ export function useFeatureFlags() {
           enableEmojiPins: getValue(remoteConfig, 'enable_emoji_pins').asBoolean(),
           maxNoteLength: getValue(remoteConfig, 'max_note_length').asNumber(),
           highlightNoteColor: getValue(remoteConfig, 'highlight_note_color').asString(),
+          enableModeration: getValue(remoteConfig, 'enable_moderation').asBoolean(),
+          enableAdminHub: getValue(remoteConfig, 'enable_admin_hub').asBoolean(),
+          riskScoreThreshold: getValue(remoteConfig, 'risk_score_threshold').asNumber(),
         });
       } catch (error) {
         // Only log if it's not a standard fetch failure or a configuration issue

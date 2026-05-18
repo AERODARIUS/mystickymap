@@ -41,6 +41,13 @@ export const useNotes = (user: User | null, isAuthReady: boolean) => {
         })
         .filter(note => {
           if (seenIds.has(note.id)) return false;
+          
+          // Filter out removed or pending notes unless user is author
+          const isModerated = note.moderationState === 'removed' || note.moderationState === 'pending_review';
+          const isAuthor = user && note.authorId === user.uid;
+          
+          if (isModerated && !isAuthor) return false;
+
           seenIds.add(note.id);
           return true;
         });

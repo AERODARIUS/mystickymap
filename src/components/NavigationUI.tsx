@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode } from 'lucide-react';
+import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
@@ -27,6 +27,8 @@ interface NavigationUIProps {
   handleLogin: () => void;
   handleLogout: () => void;
   heading: number | null;
+  isAdmin?: boolean;
+  onOpenAdmin?: () => void;
 }
 
 export const NavigationUI = ({
@@ -47,7 +49,9 @@ export const NavigationUI = ({
   setDraftEmoji,
   handleLogin,
   handleLogout,
-  heading
+  heading,
+  isAdmin,
+  onOpenAdmin
 }: NavigationUIProps) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
@@ -136,14 +140,25 @@ export const NavigationUI = ({
           </button>
         </div>
 
-        {user && (
-          <button 
-            onClick={handleLogout}
-            className="p-3 bg-white text-stone-600 rounded-2xl shadow-lg border border-stone-100 pointer-events-auto hover:bg-stone-50 transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        )}
+        <div className="flex gap-2 pointer-events-auto">
+          {isAdmin && (
+            <button 
+              onClick={onOpenAdmin}
+              className="p-3 bg-stone-900 text-white rounded-2xl shadow-lg border border-stone-800 hover:bg-stone-800 transition-all"
+              title="Moderation Hub"
+            >
+              <Shield className="w-5 h-5" />
+            </button>
+          )}
+          {user && (
+            <button 
+              onClick={handleLogout}
+              className="p-3 bg-white text-stone-600 rounded-2xl shadow-lg border border-stone-100 hover:bg-stone-50 transition-all"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Location Denied Prompt */}
