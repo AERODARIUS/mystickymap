@@ -1,4 +1,5 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -82,5 +83,30 @@ export const logError = onCall<ErrorPayload>({
   }
 
   return { success: true };
+});
+
+/**
+ * Triggered when a new moderation report is created.
+ * Logs the event to Cloud Logging to allow for Admin Email Alerts via GCP.
+ */
+export const onReportCreated = onDocumentCreated("reports/{reportId}", (event) => {
+  const snapshot = event.data;
+  if (!snapshot) {
+    logger.warn("No snapshot found in onReportCreated event.");
+    return;
+  }
+
+  const data = snapshot.data();
+  const reportId = event.params.reportId;
+
+  logger.info("New Moderation Report Received", {
+    reportId,
+    noteId: data.noteId,
+    commentId: data.commentId || null,
+    reason: data.reason,
+    reporterId: data.reporterId,
+    // Using a specific severity (NOTICE) to allow filtered alerting in GCP
+    severity: "NOTICE"
+  });
 });
 

@@ -86,11 +86,12 @@ service cloud.firestore {
 
     function isValidReport(data) {
       return data.keys().hasAll(['noteId', 'reporterId', 'reason', 'createdAt', 'status']) &&
-             data.keys().size() <= 6 &&
+             data.keys().size() <= 10 &&
              data.noteId is string && data.noteId.size() <= 128 &&
              data.reporterId is string &&
              data.reason is string && data.reason in ['spam', 'harassment', 'hate_speech', 'nsfw', 'threat', 'other'] &&
-             (!('details' in data) || (data.details is string && data.details.size() <= 1000)) &&
+             (!('commentId' in data) || (data.commentId is string && data.commentId.size() <= 128)) &&
+             (!('details' in data) || (data.details is string && data.details.size() <= 2000)) &&
              data.createdAt is timestamp &&
              data.status is string && data.status in ['pending', 'resolved', 'dismissed'];
     }
@@ -143,7 +144,6 @@ service cloud.firestore {
         allow list: if canInteractWithNote();
         
         allow create: if isVerifiedUser() && 
-                         isValidId(commentId) &&
                          isValidComment(incoming(), noteId) &&
                          incoming().createdAt == request.time &&
                          canInteractWithNote();
@@ -160,11 +160,10 @@ service cloud.firestore {
       allow get: if isValidId(reportId) && (isOwner(existing().reporterId) || isAdmin());
       allow list: if isAdmin();
       
-      allow create: if isValidId(reportId) &&
-                       isValidReport(incoming()) &&
+      allow create: if isValidReport(incoming()) &&
                        incoming().createdAt == request.time &&
                        incoming().status == 'pending' &&
-                       (isSignedIn() || incoming().reporterId == 'anonymous');
+                       (isSignedIn() ? incoming().reporterId == request.auth.uid : incoming().reporterId == 'anonymous');
       
       allow update: if isAdmin() && isValidReport(incoming());
       allow delete: if isAdmin();

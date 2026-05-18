@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { X, AlertTriangle, Send, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, AlertTriangle, Send, CheckCircle, Info } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, NoteReport, Comment } from '../types';
 import { db, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface ReportModalProps {
   note: Note | null;
@@ -17,31 +17,95 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
   const [details, setDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [hasAlreadyReported, setHasAlreadyReported] = useState(false);
+  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
+
+  // Reset states when the modal is opened for a different item or closed
+  useEffect(() => {
+    if (note || comment) {
+      setReason('spam');
+      setDetails('');
+      setIsSubmitting(false);
+      setIsSuccess(false);
+      setHasAlreadyReported(false);
+      
+      checkExistingReport();
+    }
+  }, [note?.id, comment?.id, user?.uid]);
+
+  const checkExistingReport = async () => {
+    if (!note && !comment) return;
+    
+    const itemId = comment ? comment.id : note?.id;
+    if (!itemId) return;
+
+    // 1. Check localStorage first (fast, works for guests)
+    const localReports = JSON.parse(localStorage.getItem('spotheon_reports') || '{}');
+    if (localReports[itemId]) {
+      setHasAlreadyReported(true);
+      return;
+    }
+
+    // 2. Check Firestore for registered users
+    if (user) {
+      setIsCheckingExisting(true);
+      try {
+        const reportId = `${user.uid}_${itemId}`;
+        const docSnap = await getDoc(doc(db, 'reports', reportId));
+        if (docSnap.exists()) {
+          setHasAlreadyReported(true);
+          // Sync to localStorage
+          localReports[itemId] = true;
+          localStorage.setItem('spotheon_reports', JSON.stringify(localReports));
+        }
+      } catch (error) {
+        console.error("Error checking existing report:", error);
+      } finally {
+        setIsCheckingExisting(false);
+      }
+    }
+  };
 
   if (!note && !comment) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasAlreadyReported) return;
     
     setIsSubmitting(true);
     try {
+      const itemId = comment ? comment.id : note?.id;
+      if (!itemId) throw new Error("Missing item ID");
+
       const reportData: Omit<NoteReport, 'id'> = {
         reporterId: user?.uid || 'anonymous',
         reason,
         details: details.trim(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         createdAt: serverTimestamp() as any,
-        status: 'pending'
+        status: 'pending',
+        noteId: comment ? comment.noteId : note!.id
       };
 
       if (comment) {
         reportData.commentId = comment.id;
-        reportData.noteId = comment.noteId;
-      } else if (note) {
-        reportData.noteId = note.id;
       }
 
-      await addDoc(collection(db, 'reports'), reportData);
+      if (user) {
+        // Use deterministic ID for registered users to prevent duplicates
+        const reportId = `${user.uid}_${itemId}`;
+        await setDoc(doc(db, 'reports', reportId), reportData);
+      } else {
+        // Fallback for anonymous users
+        const { addDoc } = await import('firebase/firestore');
+        await addDoc(collection(db, 'reports'), reportData);
+      }
+      
+      // Save to localStorage to prevent duplicate reports in the same browser
+      const localReports = JSON.parse(localStorage.getItem('spotheon_reports') || '{}');
+      localReports[itemId] = true;
+      localStorage.setItem('spotheon_reports', JSON.stringify(localReports));
+
       setIsSuccess(true);
       setTimeout(onClose, 2000);
     } catch (error) {
@@ -60,7 +124,7 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
             <div className="p-2 bg-amber-100 rounded-xl">
               <AlertTriangle className="w-5 h-5 text-amber-600" />
             </div>
-            <h3 className="font-bold text-stone-900 tracking-tight">Report Note</h3>
+            <h3 className="font-bold text-stone-900 tracking-tight">Report {comment ? 'Comment' : 'Note'}</h3>
           </div>
           <button 
             onClick={onClose} 
@@ -77,8 +141,32 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
             </div>
             <div>
               <p className="text-xl font-black text-stone-900">Report Received</p>
-              <p className="text-stone-500 mt-2 text-sm max-w-[200px]">Thank you for keeping Spotheon safe. We will review this note shortly.</p>
+              <p className="text-stone-500 mt-2 text-sm max-w-[200px]">Thank you for keeping Spotheon safe. We will review this item shortly.</p>
             </div>
+          </div>
+        ) : isCheckingExisting ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-4">
+            <div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+            <p className="text-stone-400 text-sm font-medium">Checking status...</p>
+          </div>
+        ) : hasAlreadyReported ? (
+          <div className="p-10 flex flex-col items-center text-center gap-6">
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center shadow-sm">
+              <Info className="w-8 h-8" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-stone-900">Already Reported</p>
+              <p className="text-stone-500 mt-2 text-sm leading-relaxed">
+                You have already submitted a report for this {comment ? 'comment' : 'note'}. 
+                Our moderators are currently reviewing it.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-all active:scale-95"
+            >
+              Got it
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
