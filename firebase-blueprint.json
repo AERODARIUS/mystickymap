@@ -40,11 +40,6 @@
           "enum": ["public", "unlisted", "private"],
           "description": "The privacy level of the note."
         },
-        "moderationState": {
-          "type": "string",
-          "enum": ["visible", "pending_review", "removed", "soft_hidden", "author_only"],
-          "description": "The moderation status of the note. Defaults to 'visible'."
-        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -141,24 +136,6 @@
         "error": { "type": "string" }
       },
       "required": ["timestamp", "status"]
-    },
-    "reports": {
-      "title": "Report",
-      "description": "A user-submitted report for a note.",
-      "type": "object",
-      "properties": {
-        "noteId": { "type": "string" },
-        "reason": { 
-          "type": "string",
-          "enum": ["spam", "harassment", "scam", "nsfw", "hate", "threats", "doxxing", "misleading", "other"]
-        },
-        "description": { "type": "string", "maxLength": 1000 },
-        "reporterId": { "type": "string", "description": "UID of the reporter or null if guest." },
-        "reporterSessionId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] }
-      },
-      "required": ["noteId", "reason", "reporterSessionId", "createdAt", "status"]
     }
   },
   "firestore": {
@@ -181,10 +158,6 @@
     "/errorReportRuns/{runId}": {
       "schema": "errorReportRuns",
       "description": "History of daily report runs."
-    },
-    "/reports/{reportId}": {
-      "schema": "reports",
-      "description": "User-submitted content reports."
     }
   }
 }

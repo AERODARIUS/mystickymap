@@ -12,7 +12,7 @@ export const Logo: React.FC<LogoProps> = ({
   color = 'dark'
 }) => {
   const textColor = color === 'dark' ? 'text-slate-900' : 'text-white';
-  const taglineColor = 'text-cyan-400';
+  const taglineColor = 'text-blue-500';
 
   const iconElement = (
     <svg 
@@ -23,28 +23,34 @@ export const Logo: React.FC<LogoProps> = ({
     >
       <defs>
         <linearGradient id="pinGradient" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#22D3EE" />
-          <stop offset="100%" stopColor="#A855F7" />
+          <stop offset="0%" stopColor="#3B82F6" />
+          <stop offset="100%" stopColor="#1D4ED8" />
         </linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+          <feOffset dx="0" dy="1" result="offsetblur" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.1" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
-      <rect width="100" height="100" rx="24" fill={color === 'dark' ? "#0F172A" : "rgba(255,255,255,0.1)"} />
+      
+      {/* Subtle shadow underneath */}
+      <ellipse cx="50" cy="88" rx="15" ry="3" fill="black" opacity="0.1" />
+      
+      {/* Main Pin Shape */}
       <path 
-        d="M50 85C50 85 75 60 75 40C75 26.1929 63.8071 15 50 15C36.1929 15 25 26.1929 25 40C25 60 50 85 50 85Z" 
+        d="M50 85C50 85 80 55 80 35C80 18.4315 66.5685 5 50 5C33.4315 5 20 18.4315 20 35C20 55 50 85 50 85Z" 
         fill="url(#pinGradient)" 
       />
-      <path 
-        d="M50 25C41.7 25 35 31.7 35 40C35 48.3 41.7 55 50 55C58.3 55 65 48.3 65 40C65 31.7 58.3 25 50 25ZM50 48C45.6 48 42 44.4 42 40C42 35.6 45.6 32 50 32C54.4 32 58 35.6 58 40C58 44.4 54.4 48 50 48Z" 
-        fill="rgba(0,0,0,0.2)" 
-      />
-      <circle cx="50" cy="40" r="6" fill="white" />
-      <circle cx="50" cy="40" r="2.5" fill="#0F172A" />
-      <path 
-        d="M40 30C45 28 55 28 60 35M60 45C55 52 45 52 40 45" 
-        stroke="white" 
-        strokeWidth="2" 
-        strokeLinecap="round"
-        opacity="0.5"
-      />
+      
+      {/* Concentric circles */}
+      <circle cx="50" cy="35" r="12" fill="white" />
+      <circle cx="50" cy="35" r="5" fill="#1D4ED8" />
     </svg>
   );
 

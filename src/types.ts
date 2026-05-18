@@ -40,24 +40,6 @@ export const MAX_COMMENT_LENGTH = 500;
 
 export type NotePrivacy = 'public' | 'unlisted' | 'private';
 
-export type NoteModerationState = 
-  | 'visible' 
-  | 'pending_review' 
-  | 'removed' 
-  | 'soft_hidden' 
-  | 'author_only';
-
-export interface Report {
-  id: string;
-  noteId: string;
-  reason: string;
-  description?: string;
-  reporterId: string | null;
-  reporterSessionId: string;
-  createdAt: Timestamp;
-  status: 'pending' | 'resolved' | 'dismissed';
-}
-
 export interface Comment {
   id: string;
   noteId: string;
@@ -76,7 +58,6 @@ export interface Note {
   authorId: string;
   authorName: string;
   privacy: NotePrivacy;
-  moderationState?: NoteModerationState;
   createdAt: Timestamp;
   color?: string;
   emoji?: string;

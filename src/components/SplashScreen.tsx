@@ -17,7 +17,7 @@ export const SplashScreen = () => {
         <div className="bg-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-800 text-left space-y-4">
           <p className="font-semibold text-slate-200">{t('splash.instructions_heading')}</p>
           <ol className="list-decimal list-inside space-y-2 text-slate-400 text-sm">
-            <li>{t('splash.step1')} <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener" className="text-cyan-400 hover:underline">Google Cloud Console</a>.</li>
+            <li>{t('splash.step1')} <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener" className="text-blue-500 hover:underline">Google Cloud Console</a>.</li>
             <li>{t('splash.step2')}</li>
             <li>{t('splash.step3')}</li>
             <li>{t('splash.step4')}</li>

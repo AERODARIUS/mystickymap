@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
@@ -19,7 +19,6 @@ interface AnchorViewProps {
   copyStatus: string | null;
   onGenerateQRCode: (id: string) => void;
   onShowComments: (note: Note) => void;
-  onReportNote: (note: Note) => void;
 }
 
 export const AnchorView = ({ 
@@ -31,8 +30,7 @@ export const AnchorView = ({
   copyToClipboard,
   copyStatus,
   onGenerateQRCode,
-  onShowComments,
-  onReportNote
+  onShowComments
 }: AnchorViewProps) => {
   const { t } = useTranslation();
   const [radius, setRadius] = useState<number>(1000); // meters
@@ -232,13 +230,6 @@ export const AnchorView = ({
                             title={t('anchor.share_link')}
                           >
                             {copyStatus === note.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => onReportNote(note)}
-                            className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full transition-colors flex items-center justify-center"
-                            title="Report Note"
-                          >
-                            <AlertTriangle className="w-4 h-4" />
                           </button>
                           {user && note.authorId === user.uid && (
                             <>

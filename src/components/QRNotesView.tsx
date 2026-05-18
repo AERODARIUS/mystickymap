@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link, Flashlight, AlertCircle, Globe, MessageSquare, AlertTriangle } from 'lucide-react';
+import { User as UserIcon, EyeOff, Share2, Check, X, QrCode, Link, Flashlight, AlertCircle, Globe, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import { Note } from '../types';
@@ -15,7 +15,6 @@ interface QRNotesViewProps {
   copyToClipboard: (id: string) => void;
   copyStatus: string | null;
   onShowComments: (note: Note) => void;
-  onReportNote: (note: Note) => void;
 }
 
 export const QRNotesView = ({
@@ -23,8 +22,7 @@ export const QRNotesView = ({
   user,
   copyToClipboard,
   copyStatus,
-  onShowComments,
-  onReportNote
+  onShowComments
 }: QRNotesViewProps) => {
   const { t } = useTranslation();
   const [scannedNote, setScannedNote] = useState<Note | null>(null);
@@ -285,16 +283,6 @@ export const QRNotesView = ({
                       title={t('qr.view.share_link')}
                     >
                       {copyStatus === scannedNote.id ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReportNote(scannedNote);
-                      }}
-                      className="p-2 rounded-full bg-rose-500/20 text-rose-100 hover:bg-rose-500/40 transition-all hover:scale-110"
-                      title="Report Note"
-                    >
-                      <AlertTriangle className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

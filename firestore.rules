@@ -49,32 +49,19 @@ service cloud.firestore {
     
     function isValidNote(data) {
       return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'privacy']) &&
-             data.keys().size() <= 16 && 
+             data.keys().size() <= 15 && 
              data.type in ['text', 'audio'] &&
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() <= 100 &&
              data.location is map && data.location.lat is number && data.location.lng is number &&
              data.privacy is string && data.privacy in ['public', 'unlisted', 'private'] &&
              data.createdAt is timestamp &&
-             (!('moderationState' in data) || (data.moderationState is string && data.moderationState in ['visible', 'pending_review', 'removed', 'soft_hidden', 'author_only'])) &&
              (!('content' in data) || (data.content is string && data.content.size() <= 1000)) &&
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 500 && data.audioUrl.matches("^https://.*"))) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
              (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
              (!('emoji' in data) || (data.emoji is string && data.emoji.size() <= 10)) &&
              (!('language' in data) || (data.language is string && data.language.size() <= 20));
-    }
-
-    function isValidReport(data) {
-      return data.keys().hasAll(['noteId', 'reason', 'reporterSessionId', 'createdAt', 'status']) &&
-             data.keys().size() <= 7 &&
-             data.noteId is string &&
-             data.reason is string && data.reason in ['spam', 'harassment', 'scam', 'nsfw', 'hate', 'threats', 'doxxing', 'misleading', 'other'] &&
-             data.reporterSessionId is string && data.reporterSessionId.size() <= 128 &&
-             data.createdAt is timestamp &&
-             data.status == 'pending' &&
-             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
-             (!('reporterId' in data) || (data.reporterId == null || data.reporterId == request.auth.uid));
     }
 
     function isValidUser(data) {
@@ -101,27 +88,19 @@ service cloud.firestore {
     // ===============================================================
 
     match /notes/{noteId} {
-      function canReadNote() {
-        let note = existing();
-        let isModerated = note.get('moderationState', 'visible') in ['removed', 'pending_review'];
-        return (
-          (note.privacy in ['public', 'unlisted'] && !isModerated) || 
-          isOwner(note.authorId) || 
-          isAdmin()
-        );
-      }
-
-      allow get: if isValidId(noteId) && canReadNote();
-      allow list: if (
-        (resource.data.privacy == 'public' && !(resource.data.get('moderationState', 'visible') in ['removed', 'pending_review'])) || 
-        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
+      allow get: if isValidId(noteId) && (
+        existing().privacy in ['public', 'unlisted'] || 
+        isOwner(existing().authorId) || 
         isAdmin()
+      );
+      allow list: if (
+        resource.data.privacy == 'public' || 
+        (isSignedIn() && resource.data.authorId == request.auth.uid)
       );
       
       allow create: if isVerifiedUser() && 
                        isValidNote(incoming()) && 
-                       incoming().createdAt == request.time &&
-                       incoming().get('moderationState', 'visible') == 'visible';
+                       incoming().createdAt == request.time;
       
       allow update: if isVerifiedUser() && 
                        isValidId(noteId) &&
@@ -130,7 +109,6 @@ service cloud.firestore {
                        (isAdmin() || (
                          incoming().authorId == existing().authorId && 
                          incoming().createdAt == existing().createdAt && 
-                         incoming().get('moderationState', 'visible') == existing().get('moderationState', 'visible') &&
                          incoming().updatedAt == request.time &&
                          affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])
                        ));
@@ -174,16 +152,6 @@ service cloud.firestore {
                        isValidUser(incoming()) &&
                        (!affectedKeys().hasAny(['role']) || isAdmin());
       
-      allow delete: if isAdmin();
-    }
-
-    match /reports/{reportId} {
-      allow get: if isAdmin() || isOwner(existing().get('reporterId', ''));
-      allow list: if isAdmin();
-      allow create: if isValidId(reportId) &&
-                       isValidReport(incoming()) &&
-                       incoming().createdAt == request.time;
-      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

@@ -107,7 +107,7 @@ export const NavigationUI = ({
                         setIsMenuOpen(false);
                       }}
                       className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-stone-50 transition-colors ${
-                        view === opt.id ? 'text-emerald-600 bg-emerald-50/50' : 'text-stone-600'
+                        view === opt.id ? 'text-blue-600 bg-blue-50/50' : 'text-stone-600'
                       }`}
                     >
                       <opt.icon className="w-4 h-4" />
@@ -129,7 +129,7 @@ export const NavigationUI = ({
               }
             }}
             className={`p-3 rounded-2xl shadow-lg border transition-all font-bold flex items-center gap-2 ${
-              isTrackingLocation ? 'bg-white text-emerald-600 border-stone-100' : 'bg-stone-100 text-stone-400 border-stone-200'
+              isTrackingLocation ? 'bg-white text-blue-600 border-stone-100' : 'bg-stone-100 text-stone-400 border-stone-200'
             }`}
           >
             {isTrackingLocation ? <Locate className="w-5 h-5" /> : <LocateOff className="w-5 h-5" />}
@@ -259,7 +259,7 @@ export const NavigationUI = ({
         <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden">
             <motion.div 
-              className="h-full bg-emerald-500"
+              className="h-full bg-blue-500"
               animate={{ x: heading ? (heading / 360) * 100 - 50 : 0 }}
               transition={{ type: 'spring', stiffness: 50 }}
             />
