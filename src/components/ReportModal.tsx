@@ -22,12 +22,11 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
+    
     setIsSubmitting(true);
     try {
       const reportData: Omit<NoteReport, 'id'> = {
-        reporterId: user.uid,
+        reporterId: user?.uid || 'anonymous',
         reason,
         details: details.trim(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,7 +120,7 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !user}
+                disabled={isSubmitting}
                 className="flex-[2] px-4 py-4 bg-stone-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-stone-800 disabled:opacity-50 transition-all text-sm shadow-xl active:scale-95 shadow-stone-900/10"
               >
                 {isSubmitting ? (

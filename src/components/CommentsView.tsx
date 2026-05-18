@@ -87,10 +87,10 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
             {/* Note Context */}
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4">
               <p className="text-sm text-stone-600 line-clamp-2 italic flex-1">"{note.content}"</p>
-              {user && note.authorId !== user.uid && flags.enableModeration && (
+              {flags.enableModeration && (
                 <button 
                   onClick={() => onReportNote(note)}
-                  className="p-2 text-stone-300 hover:text-amber-500 transition-colors"
+                  className="p-2 text-stone-600 hover:text-amber-500 transition-colors"
                   title="Report Note"
                 >
                   <AlertTriangle className="w-4 h-4" />
@@ -134,10 +134,10 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          {user && flags.enableModeration && (
+                          {flags.enableModeration && (
                             <button 
                               onClick={() => onReportComment(comment)}
-                              className="p-1 text-stone-300 hover:text-amber-500 transition-colors"
+                              className="p-1 text-stone-600 hover:text-amber-500 transition-colors"
                               title="Report Comment"
                             >
                               <AlertTriangle className="w-3.5 h-3.5" />

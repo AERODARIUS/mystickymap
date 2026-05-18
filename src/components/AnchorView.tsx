@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
@@ -8,6 +8,7 @@ import { SpeechButton } from './SpeechButton';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
 interface AnchorViewProps {
   notes: Note[];
@@ -19,6 +20,7 @@ interface AnchorViewProps {
   copyStatus: string | null;
   onGenerateQRCode: (id: string) => void;
   onShowComments: (note: Note) => void;
+  onReportNote: (note: Note) => void;
 }
 
 export const AnchorView = ({ 
@@ -30,9 +32,11 @@ export const AnchorView = ({
   copyToClipboard,
   copyStatus,
   onGenerateQRCode,
-  onShowComments
+  onShowComments,
+  onReportNote
 }: AnchorViewProps) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const [radius, setRadius] = useState<number>(1000); // meters
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -231,6 +235,15 @@ export const AnchorView = ({
                           >
                             {copyStatus === note.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
                           </button>
+                          {flags.enableModeration && (
+                            <button 
+                              onClick={() => onReportNote(note)}
+                              className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full transition-colors flex items-center justify-center"
+                              title="Report Note"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                            </button>
+                          )}
                           {user && note.authorId === user.uid && (
                             <>
                               <button 

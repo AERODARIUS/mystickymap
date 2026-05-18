@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass, MessageSquare } from 'lucide-react';
+import { User as UserIcon, Lock, Globe, Link, Pencil, Share2, Check, Compass, MessageSquare, AlertTriangle } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../types';
 import { calculateBearing, calculateDistance } from '../lib/utils';
 import { SpeechButton } from './SpeechButton';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
 export const ARView = ({ 
   notes, 
@@ -16,7 +17,8 @@ export const ARView = ({
   setEditingNote,
   copyToClipboard,
   copyStatus,
-  onShowComments
+  onShowComments,
+  onReportNote
 }: { 
   notes: Note[], 
   userLocation: { lat: number, lng: number } | null, 
@@ -26,9 +28,11 @@ export const ARView = ({
   setEditingNote: (note: Note | null) => void,
   copyToClipboard: (id: string) => void,
   copyStatus: string | null,
-  onShowComments: (note: Note) => void
+  onShowComments: (note: Note) => void,
+  onReportNote: (note: Note) => void
 }) => {
   const { t } = useTranslation();
+  const { flags } = useFeatureFlags();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -167,6 +171,18 @@ export const ARView = ({
                       >
                         {copyStatus === note.id ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5" />}
                       </button>
+                      {flags.enableModeration && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReportNote(note);
+                          }}
+                          className="p-1.5 rounded-xl bg-white/20 text-white hover:bg-white/40 border border-white/10 transition-all hover:scale-110 active:scale-95"
+                          title="Report Note"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">

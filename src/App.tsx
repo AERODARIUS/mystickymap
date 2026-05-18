@@ -251,6 +251,7 @@ export default function App() {
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onShowComments={setCommentNote}
+                onReportNote={setReportingNote}
               />
             ) : view === 'anchor' ? (
               <AnchorView 
@@ -263,6 +264,7 @@ export default function App() {
                 copyStatus={copyStatus}
                 onGenerateQRCode={(id) => setQrCodeNoteId(id)}
                 onShowComments={setCommentNote}
+                onReportNote={setReportingNote}
               />
             ) : (
               <QRNotesView 
@@ -271,6 +273,7 @@ export default function App() {
                 copyToClipboard={copyToClipboard}
                 copyStatus={copyStatus}
                 onShowComments={setCommentNote}
+                onReportNote={setReportingNote}
               />
             )}
           </div>
