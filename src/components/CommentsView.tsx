@@ -170,7 +170,7 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                       <button
                         type="submit"
                         disabled={!commentText.trim() || isSubmitting}
-                        className="p-2 bg-stone-900 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-lg"
+                        className="p-2.5 bg-[#081e2b] text-[#00a88f] hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-lg border border-[#0d9488]/30"
                       >
                         <Send className="w-4 h-4" />
                       </button>

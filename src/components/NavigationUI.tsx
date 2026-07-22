@@ -110,11 +110,11 @@ export const NavigationUI = ({
                         setView(opt.id);
                         setIsMenuOpen(false);
                       }}
-                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-stone-50 transition-colors ${
-                        view === opt.id ? 'text-blue-600 bg-blue-50/50' : 'text-stone-600'
+                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-[#f0fdfa] transition-colors ${
+                        view === opt.id ? 'text-[#0d9488] bg-[#f0fdfa] font-black' : 'text-stone-600'
                       }`}
                     >
-                      <opt.icon className="w-4 h-4" />
+                      <opt.icon className="w-4 h-4 text-[#0d9488]" />
                       <span className="text-xs font-bold">{opt.label}</span>
                     </button>
                   ))}
@@ -133,7 +133,7 @@ export const NavigationUI = ({
               }
             }}
             className={`p-3 rounded-2xl shadow-lg border transition-all font-bold flex items-center gap-2 ${
-              isTrackingLocation ? 'bg-white text-blue-600 border-stone-100' : 'bg-stone-100 text-stone-400 border-stone-200'
+              isTrackingLocation ? 'bg-white text-[#0d9488] border-teal-100/50 shadow-teal-900/5' : 'bg-stone-100 text-stone-400 border-stone-200'
             }`}
           >
             {isTrackingLocation ? <Locate className="w-5 h-5" /> : <LocateOff className="w-5 h-5" />}
@@ -259,10 +259,10 @@ export const NavigationUI = ({
                   setIsCreating(true);
                   setView('map');
                 }}
-                className="group flex items-center gap-3 px-8 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-stone-800 transition-all hover:scale-105 active:scale-95"
+                className="group flex items-center gap-3 px-8 py-4 bg-[#081e2b] hover:bg-[#0e2a38] text-white rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border border-[#0d9488]/30"
               >
-                <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform" />
-                <span className="font-bold">{t('nav.drop_note')}</span>
+                <Plus className="w-6 h-6 text-[#00a88f] group-hover:rotate-90 transition-transform" />
+                <span className="font-extrabold tracking-wide">{t('nav.drop_note')}</span>
               </button>
             </motion.div>
           ) : null}
@@ -274,7 +274,7 @@ export const NavigationUI = ({
         <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden">
             <motion.div 
-              className="h-full bg-blue-500"
+              className="h-full bg-[#00a88f]"
               animate={{ x: heading ? (heading / 360) * 100 - 50 : 0 }}
               transition={{ type: 'spring', stiffness: 50 }}
             />

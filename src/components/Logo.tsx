@@ -4,53 +4,51 @@ interface LogoProps {
   className?: string;
   variant?: 'icon' | 'horizontal' | 'full';
   color?: 'light' | 'dark';
+  showTagline?: boolean;
 }
 
 export const Logo: React.FC<LogoProps> = ({ 
   className = "w-12 h-12", 
   variant = 'icon',
-  color = 'dark'
+  color = 'dark',
+  showTagline = true
 }) => {
-  const textColor = color === 'dark' ? 'text-slate-900' : 'text-white';
-  const taglineColor = 'text-blue-500';
+  const textColor = color === 'dark' ? 'text-[#081e2b]' : 'text-white';
+  const taglineColor = color === 'dark' ? 'text-[#0d9488]' : 'text-teal-300';
 
   const iconElement = (
     <svg 
-      viewBox="0 0 100 100" 
+      viewBox="0 0 100 110" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
-      className={variant === 'icon' ? className : "w-10 h-10"}
+      className={variant === 'icon' ? className : "w-10 h-10 shrink-0"}
     >
       <defs>
-        <linearGradient id="pinGradient" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#1D4ED8" />
+        <linearGradient id="spotheonPinGrad" x1="50" y1="5" x2="50" y2="85" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00bba2" />
+          <stop offset="60%" stopColor="#00a88f" />
+          <stop offset="100%" stopColor="#0d9488" />
         </linearGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-          <feOffset dx="0" dy="1" result="offsetblur" />
-          <feComponentTransfer>
-            <feFuncA type="linear" slope="0.1" />
-          </feComponentTransfer>
-          <feMerge>
-            <feMergeNode />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+        <linearGradient id="spotheonInnerGrad" x1="50" y1="20" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#081e2b" />
+          <stop offset="100%" stopColor="#0e3846" />
+        </linearGradient>
       </defs>
       
-      {/* Subtle shadow underneath */}
-      <ellipse cx="50" cy="88" rx="15" ry="3" fill="black" opacity="0.1" />
+      {/* Ground Shadow */}
+      <ellipse cx="50" cy="98" rx="16" ry="3.5" fill="#081e2b" opacity="0.15" />
       
-      {/* Main Pin Shape */}
+      {/* Outer Drop Pin Shape */}
       <path 
-        d="M50 85C50 85 80 55 80 35C80 18.4315 66.5685 5 50 5C33.4315 5 20 18.4315 20 35C20 55 50 85 50 85Z" 
-        fill="url(#pinGradient)" 
+        d="M50 88C50 88 82 56 82 36C82 18.3269 67.6731 4 50 4C32.3269 4 18 18.3269 18 36C18 56 50 88 50 88Z" 
+        fill="url(#spotheonPinGrad)" 
       />
       
-      {/* Concentric circles */}
-      <circle cx="50" cy="35" r="12" fill="white" />
-      <circle cx="50" cy="35" r="5" fill="#1D4ED8" />
+      {/* Inner Drop Detail */}
+      <path
+        d="M50 50C50 50 62 38 62 30C62 23.3726 56.6274 18 50 18C43.3726 18 38 23.3726 38 30C38 38 50 50 50 50Z"
+        fill="url(#spotheonInnerGrad)"
+      />
     </svg>
   );
 
@@ -60,23 +58,47 @@ export const Logo: React.FC<LogoProps> = ({
 
   if (variant === 'horizontal') {
     return (
-      <div className={`flex items-center gap-3 ${className}`}>
+      <div className={`flex items-center gap-2.5 ${className}`}>
         {iconElement}
-        <div className="flex flex-col">
-          <span className={`text-2xl font-black tracking-tighter leading-none ${textColor}`}>spotheon</span>
-          <span className={`text-[8px] font-bold tracking-[0.2em] ${taglineColor}`}>EXPLORE. DISCOVER. CONNECT.</span>
+        <div className="flex flex-col items-start leading-none">
+          <div className="relative">
+            <span className={`text-2xl font-black tracking-wider uppercase font-sans ${textColor}`}>
+              SPOTHEON
+            </span>
+            {/* Curved underline arc underneath SPOTHEON */}
+            <svg viewBox="0 0 120 12" fill="none" className="w-full h-2 mt-0.5 text-[#0d9488]">
+              <path d="M10 3 C 40 10, 80 10, 110 3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+            </svg>
+          </div>
+          {showTagline && (
+            <span className={`text-[8px] font-extrabold tracking-[0.25em] uppercase ${taglineColor} -mt-0.5`}>
+              EXPLORE. DISCOVER. CONNECT.
+            </span>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col items-center gap-4 ${className}`}>
+    <div className={`flex flex-col items-center gap-2 ${className}`}>
       {iconElement}
-      <div className="text-center">
-        <div className={`text-4xl font-black tracking-tighter ${textColor}`}>spotheon</div>
-        <div className={`text-xs font-bold tracking-[0.3em] mt-1 ${taglineColor}`}>EXPLORE. DISCOVER. CONNECT.</div>
+      <div className="text-center flex flex-col items-center">
+        <div className="relative">
+          <span className={`text-3xl font-black tracking-wider uppercase font-sans ${textColor}`}>
+            SPOTHEON
+          </span>
+          <svg viewBox="0 0 120 12" fill="none" className="w-32 h-2.5 mt-0.5 text-[#0d9488] mx-auto">
+            <path d="M10 3 C 40 10, 80 10, 110 3" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+          </svg>
+        </div>
+        {showTagline && (
+          <span className={`text-[9px] font-extrabold tracking-[0.3em] uppercase ${taglineColor} mt-1`}>
+            EXPLORE. DISCOVER. CONNECT.
+          </span>
+        )}
       </div>
     </div>
   );
 };
+

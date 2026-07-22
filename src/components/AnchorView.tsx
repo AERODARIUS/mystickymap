@@ -123,9 +123,9 @@ export const AnchorView = ({
                 step="100"
                 value={radius}
                 onChange={(e) => setRadius(parseInt(e.target.value))}
-                className="w-full accent-emerald-600 h-1.5 bg-stone-100 rounded-lg appearance-none cursor-pointer"
+                className="w-full accent-[#0d9488] h-1.5 bg-stone-100 rounded-lg appearance-none cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${((radius - 100) / 9900) * 100}%, #f5f5f4 ${((radius - 100) / 9900) * 100}%, #f5f5f4 100%)`
+                  background: `linear-gradient(to right, #0d9488 0%, #0d9488 ${((radius - 100) / 9900) * 100}%, #f5f5f4 ${((radius - 100) / 9900) * 100}%, #f5f5f4 100%)`
                 }}
               />
             </div>

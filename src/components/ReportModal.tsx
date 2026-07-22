@@ -22,49 +22,48 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
 
   // Reset states when the modal is opened for a different item or closed
   useEffect(() => {
-    if (note || comment) {
-      setReason('spam');
-      setDetails('');
-      setIsSubmitting(false);
-      setIsSuccess(false);
-      setHasAlreadyReported(false);
-      
-      checkExistingReport();
-    }
-  }, [note?.id, comment?.id, user?.uid]);
-
-  const checkExistingReport = async () => {
     if (!note && !comment) return;
-    
+
+    let isMounted = true;
+
     const itemId = comment ? comment.id : note?.id;
     if (!itemId) return;
 
-    // 1. Check localStorage first (fast, works for guests)
-    const localReports = JSON.parse(localStorage.getItem('spotheon_reports') || '{}');
-    if (localReports[itemId]) {
-      setHasAlreadyReported(true);
-      return;
-    }
-
-    // 2. Check Firestore for registered users
-    if (user) {
-      setIsCheckingExisting(true);
-      try {
-        const reportId = `${user.uid}_${itemId}`;
-        const docSnap = await getDoc(doc(db, 'reports', reportId));
-        if (docSnap.exists()) {
-          setHasAlreadyReported(true);
-          // Sync to localStorage
-          localReports[itemId] = true;
-          localStorage.setItem('spotheon_reports', JSON.stringify(localReports));
-        }
-      } catch (error) {
-        console.error("Error checking existing report:", error);
-      } finally {
-        setIsCheckingExisting(false);
+    const checkExistingReport = async () => {
+      // 1. Check localStorage first (fast, works for guests)
+      const localReports = JSON.parse(localStorage.getItem('spotheon_reports') || '{}');
+      if (localReports[itemId]) {
+        if (isMounted) setHasAlreadyReported(true);
+        return;
       }
-    }
-  };
+      if (isMounted) setHasAlreadyReported(false);
+
+      // 2. Check Firestore for registered users
+      if (user) {
+        if (isMounted) setIsCheckingExisting(true);
+        try {
+          const reportId = `${user.uid}_${itemId}`;
+          const docSnap = await getDoc(doc(db, 'reports', reportId));
+          if (docSnap.exists() && isMounted) {
+            setHasAlreadyReported(true);
+            // Sync to localStorage
+            localReports[itemId] = true;
+            localStorage.setItem('spotheon_reports', JSON.stringify(localReports));
+          }
+        } catch (error) {
+          console.error("Error checking existing report:", error);
+        } finally {
+          if (isMounted) setIsCheckingExisting(false);
+        }
+      }
+    };
+
+    checkExistingReport();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [note, comment, user]);
 
   if (!note && !comment) return null;
 

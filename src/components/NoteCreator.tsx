@@ -227,7 +227,7 @@ export const NoteCreator = ({
             {editingNote ? t('creator.edit_note') : t('creator.new_note')}
           </h3>
           <div className="flex gap-1.5">
-            {['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
+            {['#0d9488', '#00a88f', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
               <button 
                 key={c}
                 type="button"
@@ -410,9 +410,9 @@ export const NoteCreator = ({
         <button
           type="submit"
           disabled={isSubmitting || !content.trim()}
-          className="w-fit px-10 py-3 bg-stone-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95"
+          className="w-fit px-10 py-3.5 bg-[#081e2b] text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#0e2a38] disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95 border border-[#0d9488]/40"
         >
-          {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
+          {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-[#00a88f] rounded-full animate-spin" /> : <Send className="w-5 h-5 text-[#00a88f]" />}
           {isSubmitting ? t('creator.dropping') : t('creator.drop_note_here')}
         </button>
       </form>

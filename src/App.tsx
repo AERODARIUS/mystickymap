@@ -54,7 +54,7 @@ export default function App() {
   });
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [draftColor, setDraftColor] = useState('#10b981');
+  const [draftColor, setDraftColor] = useState('#0d9488');
   const [draftEmoji, setDraftEmoji] = useState('📝');
   const [draftLocation, setDraftLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -126,7 +126,7 @@ export default function App() {
       const targetNote = notes.find(n => n.id === noteIdFromUrl);
       if (targetNote) {
         hasHandledUrlNote.current = true;
-        setTimeout(() => setSelectedNote(targetNote), 0);
+        setTimeout(() => setCommentNote(targetNote), 0);
       } else {
         // Even if we have other notes, this one isn't in the list
         // If not in the discovery list (e.g. Unlisted or out of range), try to fetch it directly
@@ -143,7 +143,7 @@ export default function App() {
 
               // Security rules will block this if it's Private and we're not the owner
               hasHandledUrlNote.current = true;
-              setTimeout(() => setSelectedNote(fetchedNote), 0);
+              setTimeout(() => setCommentNote(fetchedNote), 0);
             }
           } catch {
             // Silently fail if not found or no permission
@@ -188,8 +188,8 @@ export default function App() {
 
   if (!isAuthReady) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-stone-50">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-[#081e2b]">
+        <div className="w-10 h-10 border-4 border-teal-200/20 border-t-[#00a88f] rounded-full animate-spin" />
       </div>
     );
   }
