@@ -19,22 +19,61 @@ export const NoteCreator = ({
   setColor,
   emoji,
   setEmoji,
-  editingNote
+  editingNote,
+  content: propContent,
+  setContent: propSetContent,
+  language: propLanguage,
+  setLanguage: propSetLanguage,
+  privacy: propPrivacy,
+  setPrivacy: propSetPrivacy,
+  onProceedToPlacement
 }: { 
   draftLocation: { lat: number, lng: number } | null, 
-  onNoteCreated: () => void,
+  onNoteCreated?: () => void,
   color: string,
   setColor: (color: string) => void,
   emoji: string,
   setEmoji: (emoji: string) => void,
-  editingNote?: Note | null
+  editingNote?: Note | null,
+  content?: string,
+  setContent?: (content: string) => void,
+  language?: string,
+  setLanguage?: (lang: string) => void,
+  privacy?: NotePrivacy,
+  setPrivacy?: (privacy: NotePrivacy) => void,
+  onProceedToPlacement?: () => void
 }) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
-  const [content, setContent] = useState(editingNote?.content || '');
-  const [language, setLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
-  const [privacy, setPrivacy] = useState<NotePrivacy>(editingNote?.privacy || 'public');
+  const [localContent, setLocalContent] = useState(editingNote?.content || '');
+  const [localLanguage, setLocalLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
+  const [localPrivacy, setLocalPrivacy] = useState<NotePrivacy>(editingNote?.privacy || 'public');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const content = propContent !== undefined ? propContent : localContent;
+  const setContent = (val: string | ((prev: string) => string)) => {
+    if (propSetContent) {
+      if (typeof val === 'function') {
+        propSetContent(val(content));
+      } else {
+        propSetContent(val);
+      }
+    } else {
+      setLocalContent(val);
+    }
+  };
+
+  const language = propLanguage !== undefined ? propLanguage : localLanguage;
+  const setLanguage = (val: string) => {
+    if (propSetLanguage) propSetLanguage(val);
+    else setLocalLanguage(val);
+  };
+
+  const privacy = propPrivacy !== undefined ? propPrivacy : localPrivacy;
+  const setPrivacy = (val: NotePrivacy) => {
+    if (propSetPrivacy) propSetPrivacy(val);
+    else setLocalPrivacy(val);
+  };
   
   const allEmojis = [
     // Smileys
@@ -44,6 +83,8 @@ export const NoteCreator = ({
     // Activities & Objects
     '📝', '🔥', '💡', '💬', '🏠', '📍', '🗺️', '📸', '🎨', '🎉', '⭐', '✨', '🌈', '☀️', '🌙', '☁️', '❄️', '🍔', '🍕', '🍺', '☕', '🏢', '🚗', '🚲', '⚡', '👣', '🎒', '🧗', '🐕', '🐱', '🌳', '🌊', '⚽', '🏀', '🎮', '🎧', '📱', '💻', '⌚', '🎁', '🎈', '🛒', '🔑', '🔒', '💎', '💰'
   ];
+
+  const maxNoteLength = flags.maxNoteLength || 500;
 
   // Audio transcription state
   const [isRecording, setIsRecording] = useState(false);
@@ -126,7 +167,8 @@ export const NoteCreator = ({
           setContent(prev => {
             const current = prev.trim();
             const addition = final.trim();
-            return current ? `${current} ${addition}` : addition;
+            const combined = current ? `${current} ${addition}` : addition;
+            return combined.slice(0, maxNoteLength);
           });
           setInterimTranscript('');
         } else {
@@ -150,12 +192,18 @@ export const NoteCreator = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draftLocation || !auth.currentUser || !content.trim()) return;
+    if (!content.trim()) return;
+
+    if (onProceedToPlacement) {
+      onProceedToPlacement();
+      return;
+    }
+
+    if (!draftLocation || !auth.currentUser) return;
 
     setIsSubmitting(true);
     try {
       if (editingNote) {
-        // Only send fields that can be updated to follow best practices and respect security rules
         const updates = {
           content: content.trim(),
           privacy,
@@ -164,7 +212,7 @@ export const NoteCreator = ({
           emoji,
           language,
           authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
-          location: draftLocation // Owner might update location slightly
+          location: draftLocation
         };
         await updateDoc(doc(db, 'notes', editingNote.id), updates);
       } else {
@@ -184,8 +232,7 @@ export const NoteCreator = ({
         await addDoc(collection(db, 'notes'), noteData);
       }
       
-      setContent('');
-      onNoteCreated();
+      if (onNoteCreated) onNoteCreated();
     } catch (error) {
       handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, editingNote ? `notes/${editingNote.id}` : 'notes');
     } finally {
@@ -275,10 +322,10 @@ export const NoteCreator = ({
         <div className="relative group">
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => setContent(e.target.value.slice(0, maxNoteLength))}
             placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
             className={`w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-32 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
-            maxLength={flags.maxNoteLength}
+            maxLength={maxNoteLength}
           />
           
           {interimTranscript && isRecording && (
@@ -317,9 +364,9 @@ export const NoteCreator = ({
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
               <span className={`text-xs font-mono font-medium px-3 py-2 rounded-xl border transition-colors ${
-                content.length >= (flags.maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
+                content.length >= maxNoteLength ? 'bg-red-50 border-red-200 text-red-600' : content.length >= (maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
               }`}>
-                {content.length} / {flags.maxNoteLength}
+                {content.length} / {maxNoteLength}
               </span>
 
               {isSpeechSupported && (
@@ -413,7 +460,7 @@ export const NoteCreator = ({
           className="w-fit px-10 py-3.5 bg-[#081e2b] text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#0e2a38] disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95 border border-[#0d9488]/40"
         >
           {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-[#00a88f] rounded-full animate-spin" /> : <Send className="w-5 h-5 text-[#00a88f]" />}
-          {isSubmitting ? t('creator.dropping') : t('creator.drop_note_here')}
+          Place Note
         </button>
       </form>
     </div>

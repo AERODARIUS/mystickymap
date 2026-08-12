@@ -17,6 +17,7 @@ interface MapMarkersProps {
   userLocation: { lat: number; lng: number } | null;
   isCreating: boolean;
   editingNote: Note | null;
+  placementStep?: 'editing_content' | 'placing_location';
   draftLocation: { lat: number; lng: number } | null;
   draftColor: string;
   draftEmoji: string;
@@ -37,6 +38,7 @@ export const MapMarkers = ({
   userLocation,
   isCreating,
   editingNote,
+  placementStep = 'editing_content',
   draftLocation,
   draftColor,
   draftEmoji,
@@ -86,7 +88,7 @@ export const MapMarkers = ({
         </AdvancedMarker>
       )}
 
-      {(isCreating || editingNote) && draftLocation && (
+      {(isCreating || editingNote) && draftLocation && placementStep === 'editing_content' && (
         <AdvancedMarker 
           position={draftLocation}
           draggable={true}
@@ -134,7 +136,7 @@ export const MapMarkers = ({
           position={selectedNote.location} 
           onCloseClick={() => setSelectedNote(null)}
         >
-          <div className="p-3 max-w-[260px] overflow-x-hidden">
+          <div className="p-3 max-w-[280px] max-h-[320px] overflow-y-auto scrollbar-thin">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-100">
               <div className="flex-1 min-w-0">
                 <p className="text-[8px] text-stone-400 uppercase tracking-tighter">{t('anchor.created_by')}</p>
@@ -157,7 +159,7 @@ export const MapMarkers = ({
                 </div>
               )}
             </div>
-            <p className="text-sm text-stone-800 font-medium leading-relaxed break-words">{selectedNote.content}</p>
+            <p className="text-sm text-stone-800 font-medium leading-relaxed whitespace-pre-wrap break-words">{selectedNote.content}</p>
             <div className="flex items-center justify-between mt-3 pt-2 border-t border-stone-100/50">
               <p className="text-[10px] text-stone-400">
                 {selectedNote.createdAt.toDate().toLocaleDateString()}

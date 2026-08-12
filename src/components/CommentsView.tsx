@@ -86,7 +86,7 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
 
             {/* Note Context */}
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4">
-              <p className="text-sm text-stone-600 line-clamp-2 italic flex-1">"{note.content}"</p>
+              <p className="text-sm text-stone-600 italic flex-1 whitespace-pre-wrap break-words max-h-36 overflow-y-auto scrollbar-thin">"{note.content}"</p>
               {flags.enableModeration && (
                 <button 
                   onClick={() => onReportNote(note)}
@@ -146,7 +146,7 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                         </div>
                       </div>
                       <div className="p-3 bg-stone-100 rounded-2xl rounded-tl-none">
-                        <p className="text-sm text-stone-700 leading-relaxed break-words">{comment.content}</p>
+                        <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap break-words">{comment.content}</p>
                       </div>
                     </div>
                   </div>
@@ -162,6 +162,7 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                     <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+                      maxLength={MAX_COMMENT_LENGTH}
                       placeholder={t('comments.placeholder')}
                       rows={2}
                       className="w-full p-4 pr-12 bg-stone-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-stone-900 outline-none resize-none"

@@ -132,7 +132,7 @@ export const ARView = ({
                           {note.privacy === 'public' && <Globe className="w-2.5 h-2.5" />}
                         </div>
                       </div>
-                      <p className="text-[13px] leading-snug font-medium line-clamp-4 break-words">
+                      <p className="text-[13px] leading-snug font-medium whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin">
                         {note.content}
                       </p>
                     </div>

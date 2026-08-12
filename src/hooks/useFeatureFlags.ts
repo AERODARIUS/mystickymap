@@ -31,6 +31,12 @@ export function useFeatureFlags() {
 
   useEffect(() => {
     async function initRemoteConfig() {
+      if (!remoteConfig) {
+        setFlags(DEFAULT_FLAGS);
+        setLoading(false);
+        return;
+      }
+
       try {
         // Set default values locally
         remoteConfig.defaultConfig = {
@@ -46,8 +52,6 @@ export function useFeatureFlags() {
         };
 
         // Fetch and activate
-        // Use a timeout or handle network failures gracefully as Remote Config fetch 
-        // can be blocked in some preview/iframe environments
         await fetchAndActivate(remoteConfig);
 
         // Get values
@@ -63,17 +67,13 @@ export function useFeatureFlags() {
           riskScoreThreshold: getValue(remoteConfig, 'risk_score_threshold').asNumber(),
         });
       } catch (error) {
-        // Only log if it's not a standard fetch failure or a configuration issue
+        // Silently catch installations, referer, network, or 403 errors and fall back to defaults
         if (error instanceof Error) {
-          const is403 = error.message.includes('403') || error.message.includes('remoteconfig/fetch-status');
-          const isNetworkError = error.message.includes('fetch-client-network');
-
-          if (is403) {
-            console.warn('Remote Config fetch returned 403. This usually means the Remote Config API is not enabled in your Google Cloud Project or you haven\'t created the configuration in the Firebase Console yet. Using default feature flags.');
-          } else if (!isNetworkError) {
-            console.error('Error fetching remote config:', error.message);
+          const msg = error.message.toLowerCase();
+          if (msg.includes('403') || msg.includes('permission_denied') || msg.includes('installations') || msg.includes('fetch-client-network')) {
+            console.info('Remote config unavailable in preview environment, using default feature flags.');
           } else {
-            console.info('Remote config fetch bypassed (network), using default feature flags.');
+            console.warn('Error fetching remote config:', error.message);
           }
         }
       } finally {

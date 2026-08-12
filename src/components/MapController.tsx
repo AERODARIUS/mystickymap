@@ -5,42 +5,58 @@ import { Note } from '../types';
 export const MapController = ({ 
   isCreating, 
   editingNote, 
+  placementStep,
   userLocation, 
-  setDraftLocation, 
-  setDraftColor,
-  draftLocation,
+  candidateLocation,
+  setCandidateLocation, 
   isTrackingLocation,
   selectedNote
 }: {
   isCreating: boolean;
   editingNote: Note | null;
+  placementStep: 'editing_content' | 'placing_location';
   userLocation: { lat: number, lng: number } | null;
-  setDraftLocation: (loc: { lat: number, lng: number } | null) => void;
-  setDraftColor: (color: string) => void;
-  draftLocation: { lat: number, lng: number } | null;
+  candidateLocation: { lat: number, lng: number } | null;
+  setCandidateLocation: (loc: { lat: number, lng: number } | null) => void;
   isTrackingLocation: boolean;
   selectedNote: Note | null;
 }) => {
   const map = useMap();
   const hasJumpedToInitial = useRef(false);
+  const prevStepRef = useRef<string | null>(null);
 
+  // Pan map when entering placement step
   useEffect(() => {
-    if (isCreating && map && !draftLocation) {
+    if (!map) return;
+
+    if (placementStep === 'placing_location' && prevStepRef.current !== 'placing_location') {
+      if (candidateLocation) {
+        map.panTo(candidateLocation);
+        if ((map.getZoom() || 0) < 17) {
+          map.setZoom(17);
+        }
+      }
+    }
+    prevStepRef.current = placementStep;
+  }, [map, placementStep, candidateLocation]);
+
+  // Continuously derive candidateLocation from map center when in placement mode
+  useEffect(() => {
+    if (!map || placementStep !== 'placing_location') return;
+
+    const listener = map.addListener('center_changed', () => {
       const center = map.getCenter();
       if (center) {
-        setDraftLocation({ lat: center.lat(), lng: center.lng() });
+        setCandidateLocation({ lat: center.lat(), lng: center.lng() });
       }
-      if ((map.getZoom() || 0) < 17) map.setZoom(17);
-      setDraftColor('#10b981');
-    } else if (editingNote && map && !draftLocation) {
-      setDraftLocation(editingNote.location);
-      setDraftColor(editingNote.color || '#10b981');
-      map.panTo(editingNote.location);
-      map.setZoom(17);
-    } else if (!isCreating && !editingNote && draftLocation) {
-      setDraftLocation(null);
-    }
-  }, [isCreating, editingNote, userLocation, map, setDraftLocation, setDraftColor, draftLocation, isTrackingLocation]);
+    });
+
+    return () => {
+      if (listener && typeof listener.remove === 'function') {
+        listener.remove();
+      }
+    };
+  }, [map, placementStep, setCandidateLocation]);
 
   useEffect(() => {
     if (selectedNote && map && !hasJumpedToInitial.current && !isTrackingLocation) {

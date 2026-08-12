@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Share2, MessageCircle, Smartphone } from 'lucide-react';
+import { X, Download, Share2, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Logo } from './Logo';
+import { logAnalyticsEvent } from '../firebase';
 
 interface QRCodeDisplayProps {
   noteId: string;
@@ -15,6 +16,12 @@ export const QRCodeDisplay = ({ noteId, isOpen, onClose }: QRCodeDisplayProps) =
   const { t } = useTranslation();
   const posterRef = useRef<HTMLDivElement>(null);
   const shareUrl = `${window.location.origin}/?noteId=${noteId}`;
+
+  useEffect(() => {
+    if (isOpen && noteId) {
+      logAnalyticsEvent('qr_generate', { note_id: noteId });
+    }
+  }, [isOpen, noteId]);
 
   const downloadPosterPNG = () => {
     const svg = document.getElementById('poster-qr-code-svg');
@@ -127,44 +134,13 @@ export const QRCodeDisplay = ({ noteId, isOpen, onClose }: QRCodeDisplayProps) =
                 />
               </div>
 
-              {/* Headline */}
-              <div className="relative z-10 text-center space-y-1 mb-5">
-                <h2 className="text-2xl sm:text-3xl font-black text-[#081e2b] tracking-tight leading-none uppercase">
-                  Anúnciate
-                </h2>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-3xl sm:text-4xl font-black text-[#00a88f] tracking-tight leading-none uppercase">
-                    GRATIS
-                  </span>
-                  <span className="text-2xl sm:text-3xl font-black text-[#081e2b] tracking-tight leading-none lowercase">
-                    aquí
-                  </span>
-                  {/* Ray Burst Accents */}
-                  <svg className="w-5 h-5 text-[#00a88f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="2" x2="12" y2="6" />
-                    <line x1="12" y1="18" x2="12" y2="22" />
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Feature Bullet Points */}
-              <div className="relative z-10 w-full space-y-2.5 pt-3 border-t border-[#0d9488]/20">
-                <div className="flex items-center gap-3 bg-[#f0fdfa] p-2.5 rounded-2xl border border-[#ccfbf1]">
-                  <div className="w-9 h-9 rounded-full bg-[#ccfbf1] text-[#0d9488] flex items-center justify-center shrink-0">
-                    <MessageCircle className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-[#081e2b] text-left leading-tight">
-                    Dejá un mensaje para quienes pasan por aquí.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 bg-[#f0fdfa] p-2.5 rounded-2xl border border-[#ccfbf1]">
+              {/* Feature Box */}
+              <div className="relative z-10 w-full pt-2">
+                <div className="flex items-center justify-center gap-3 bg-[#f0fdfa] p-3 rounded-2xl border border-[#ccfbf1]">
                   <div className="w-9 h-9 rounded-full bg-[#ccfbf1] text-[#0d9488] flex items-center justify-center shrink-0">
                     <Smartphone className="w-5 h-5" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-[#081e2b] text-left leading-tight">
+                  <p className="text-sm font-extrabold text-[#081e2b] text-left leading-tight">
                     Escaneá el QR.
                   </p>
                 </div>
@@ -184,7 +160,7 @@ export const QRCodeDisplay = ({ noteId, isOpen, onClose }: QRCodeDisplayProps) =
                 onClick={() => {
                   if (navigator.share) {
                     navigator.share({
-                      title: 'SPOTHEON - Anúnciate GRATIS aquí',
+                      title: 'SPOTHEON',
                       text: t('qr.display.share_text'),
                       url: shareUrl,
                     }).catch(console.error);

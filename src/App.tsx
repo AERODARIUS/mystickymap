@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { auth, googleProvider, signInWithPopup, onAuthStateChanged } from './firebase';
+import { auth, googleProvider, signInWithPopup, onAuthStateChanged, db, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from './firebase';
+import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 // Components
@@ -15,6 +16,7 @@ import { ARView } from './components/ARView';
 import { MapController } from './components/MapController';
 import { MapMarkers } from './components/MapMarkers';
 import { NavigationUI } from './components/NavigationUI';
+import { LocationPlacement } from './components/LocationPlacement';
 import { AnchorView } from './components/AnchorView';
 import { QRNotesView } from './components/QRNotesView';
 import { QRCodeDisplay } from './components/QRCodeDisplay';
@@ -28,7 +30,7 @@ import { useNotes } from './hooks/useNotes';
 import { useAdmin } from './hooks/useAdmin';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useLocation } from './hooks/useLocation';
-import { Note, Comment } from './types';
+import { Note, Comment, NotePrivacy } from './types';
 
 const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'undefined' && API_KEY !== '';
@@ -53,10 +55,21 @@ export default function App() {
     return true;
   });
   const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [placementStep, setPlacementStep] = useState<'editing_content' | 'placing_location'>('editing_content');
+  
+  // Note draft values preserved across step transitions
+  const [draftContent, setDraftContent] = useState('');
+  const [draftLanguage, setDraftLanguage] = useState(typeof navigator !== 'undefined' ? navigator.language : 'en-US');
+  const [draftPrivacy, setDraftPrivacy] = useState<NotePrivacy>('public');
   const [draftColor, setDraftColor] = useState('#0d9488');
   const [draftEmoji, setDraftEmoji] = useState('📝');
-  const [draftLocation, setDraftLocation] = useState<{ lat: number, lng: number } | null>(null);
+
+  // Location tracking for note placement
+  const [, setOriginalLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [candidateLocation, setCandidateLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
   const [commentNote, setCommentNote] = useState<Note | null>(null);
@@ -66,24 +79,7 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const hasHandledUrlNote = useRef(false);
 
-  const handleEditNote = useCallback((note: Note | null) => {
-    setEditingNote(note);
-    if (note) {
-      if (note.color) setDraftColor(note.color);
-      if (note.emoji) setDraftEmoji(note.emoji);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const path = view === 'map' ? '/' : `/${view}`;
-      if (window.location.pathname !== path) {
-        window.history.pushState({}, '', path);
-      }
-    }
-  }, [view]);
-
-  // Custom Hooks
+  // Hooks
   const { notes } = useNotes(user, isAuthReady);
   const { flags } = useFeatureFlags();
   const { isAdmin } = useAdmin(user);
@@ -94,11 +90,121 @@ export default function App() {
 
   const { userLocation, heading, isPermissionDenied } = useLocation(isTrackingLocation, handlePermissionDenied);
 
+  const handleStartCreate = useCallback(() => {
+    setIsCreating(true);
+    setEditingNote(null);
+    setPlacementStep('editing_content');
+    setDraftContent('');
+    setDraftLanguage(typeof navigator !== 'undefined' ? navigator.language : 'en-US');
+    setDraftPrivacy('public');
+    setDraftColor('#10b981');
+    setDraftEmoji('📝');
+    
+    const initLoc = userLocation || { lat: 37.42, lng: -122.08 };
+    setOriginalLocation(initLoc);
+    setCandidateLocation(initLoc);
+    setView('map');
+  }, [userLocation]);
+
+  const handleEditNote = useCallback((note: Note | null) => {
+    setEditingNote(note);
+    setIsCreating(false);
+    if (note) {
+      setPlacementStep('editing_content');
+      setDraftContent(note.content || '');
+      setDraftLanguage(note.language || (typeof navigator !== 'undefined' ? navigator.language : 'en-US'));
+      setDraftPrivacy(note.privacy || 'public');
+      setDraftColor(note.color || '#10b981');
+      setDraftEmoji(note.emoji || '📝');
+      
+      const loc = note.location || { lat: 37.42, lng: -122.08 };
+      setOriginalLocation(loc);
+      setCandidateLocation(loc);
+      setView('map');
+    } else {
+      setOriginalLocation(null);
+      setCandidateLocation(null);
+    }
+  }, []);
+
+  const handleProceedToPlacement = useCallback(() => {
+    if (!draftContent.trim()) return;
+    setPlacementStep('placing_location');
+    setView('map');
+  }, [draftContent]);
+
+  const handleReturnToEditor = useCallback(() => {
+    setPlacementStep('editing_content');
+  }, []);
+
+  const handleConfirmPlacement = useCallback(async () => {
+    if (!candidateLocation || !auth.currentUser || !draftContent.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (editingNote) {
+        const updates = {
+          content: draftContent.trim(),
+          privacy: draftPrivacy,
+          updatedAt: serverTimestamp(),
+          color: draftColor,
+          emoji: draftEmoji,
+          language: draftLanguage,
+          authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
+          location: candidateLocation
+        };
+        await updateDoc(doc(db, 'notes', editingNote.id), updates);
+        logAnalyticsEvent('note_update', { note_id: editingNote.id, privacy: draftPrivacy });
+      } else {
+        const noteData = {
+          type: 'text',
+          content: draftContent.trim(),
+          location: candidateLocation,
+          authorId: auth.currentUser.uid,
+          authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
+          privacy: draftPrivacy,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          color: draftColor,
+          emoji: draftEmoji,
+          language: draftLanguage
+        };
+        const newRef = await addDoc(collection(db, 'notes'), noteData);
+        logAnalyticsEvent('note_create', { note_id: newRef.id, privacy: draftPrivacy });
+      }
+
+      setIsCreating(false);
+      setEditingNote(null);
+      setOriginalLocation(null);
+      setCandidateLocation(null);
+      setPlacementStep('editing_content');
+      setDraftContent('');
+    } catch (error) {
+      handleFirestoreError(
+        error, 
+        editingNote ? OperationType.UPDATE : OperationType.CREATE, 
+        editingNote ? `notes/${editingNote.id}` : 'notes'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [candidateLocation, editingNote, draftContent, draftPrivacy, draftColor, draftEmoji, draftLanguage]);
+
+  const handleCancelNoteFlow = useCallback(() => {
+    setIsCreating(false);
+    setEditingNote(null);
+    setOriginalLocation(null);
+    setCandidateLocation(null);
+    setPlacementStep('editing_content');
+    setDraftContent('');
+  }, []);
+
   const copyToClipboard = useCallback((id: string) => {
     const url = new URL(window.location.origin + window.location.pathname);
     url.searchParams.set('noteId', id);
     navigator.clipboard.writeText(url.toString());
     setCopyStatus(id);
+    logAnalyticsEvent('share_note_link', { note_id: id });
     setTimeout(() => setCopyStatus(null), 2000);
   }, []);
 
@@ -106,7 +212,12 @@ export default function App() {
     setView('map');
     setSelectedNote(note);
     setIsTrackingLocation(false);
+    logAnalyticsEvent('note_view', { note_id: note.id, privacy: note.privacy, mode: 'anchor_list' });
   }, []);
+
+  useEffect(() => {
+    logAnalyticsEvent('screen_view', { firebase_screen: view, screen_name: view });
+  }, [view]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (userProfile) => {
@@ -123,6 +234,9 @@ export default function App() {
     const noteIdFromUrl = urlParams.get('noteId');
 
     if (noteIdFromUrl) {
+      logAnalyticsEvent('qr_scan', { note_id: noteIdFromUrl, source: 'url_param' });
+      logAnalyticsEvent('note_view', { note_id: noteIdFromUrl, mode: 'url_param' });
+
       const targetNote = notes.find(n => n.id === noteIdFromUrl);
       if (targetNote) {
         hasHandledUrlNote.current = true;
@@ -212,10 +326,10 @@ export default function App() {
                 <MapController 
                   isCreating={isCreating}
                   editingNote={editingNote}
+                  placementStep={placementStep}
                   userLocation={userLocation}
-                  setDraftLocation={setDraftLocation}
-                  setDraftColor={setDraftColor}
-                  draftLocation={draftLocation}
+                  candidateLocation={candidateLocation}
+                  setCandidateLocation={setCandidateLocation}
                   isTrackingLocation={isTrackingLocation}
                   selectedNote={selectedNote}
                 />
@@ -226,12 +340,13 @@ export default function App() {
                   userLocation={userLocation}
                   isCreating={isCreating}
                   editingNote={editingNote}
-                  draftLocation={draftLocation}
+                  placementStep={placementStep}
+                  draftLocation={candidateLocation}
                   draftColor={draftColor}
                   draftEmoji={draftEmoji}
                   selectedNote={selectedNote}
                   copyStatus={copyStatus}
-                  setDraftLocation={setDraftLocation}
+                  setDraftLocation={setCandidateLocation}
                   setSelectedNote={setSelectedNote}
                   setEditingNote={handleEditNote}
                   copyToClipboard={copyToClipboard}
@@ -278,6 +393,21 @@ export default function App() {
             )}
           </div>
 
+          {(isCreating || editingNote) && placementStep === 'placing_location' && (
+            <LocationPlacement 
+              isCreating={isCreating}
+              editingNote={editingNote}
+              draftColor={draftColor}
+              draftEmoji={draftEmoji}
+              draftContent={draftContent}
+              candidateLocation={candidateLocation}
+              onEditNote={handleReturnToEditor}
+              onConfirmLocation={handleConfirmPlacement}
+              onCancel={handleCancelNoteFlow}
+              isSubmitting={isSubmitting}
+            />
+          )}
+
           <NavigationUI 
             user={user}
             view={view}
@@ -285,15 +415,23 @@ export default function App() {
             isPermissionDenied={isPermissionDenied}
             isCreating={isCreating}
             editingNote={editingNote}
-            draftLocation={draftLocation}
+            placementStep={placementStep}
+            draftLocation={candidateLocation}
             draftColor={draftColor}
             draftEmoji={draftEmoji}
+            draftContent={draftContent}
+            draftLanguage={draftLanguage}
+            draftPrivacy={draftPrivacy}
             setView={setView}
             setIsTrackingLocation={setIsTrackingLocation}
-            setIsCreating={setIsCreating}
-            setEditingNote={handleEditNote}
+            onStartCreate={handleStartCreate}
+            onCancelNoteFlow={handleCancelNoteFlow}
             setDraftColor={setDraftColor}
             setDraftEmoji={setDraftEmoji}
+            setDraftContent={setDraftContent}
+            setDraftLanguage={setDraftLanguage}
+            setDraftPrivacy={setDraftPrivacy}
+            onProceedToPlacement={handleProceedToPlacement}
             handleLogin={handleLogin}
             handleLogout={handleLogout}
             heading={heading}

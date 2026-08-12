@@ -4,7 +4,7 @@ import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, Che
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
-import { Note } from '../types';
+import { Note, NotePrivacy } from '../types';
 import { NoteCreator } from './NoteCreator';
 import { Logo } from './Logo';
 
@@ -15,15 +15,23 @@ interface NavigationUIProps {
   isPermissionDenied: boolean;
   isCreating: boolean;
   editingNote: Note | null;
+  placementStep: 'editing_content' | 'placing_location';
   draftLocation: { lat: number; lng: number } | null;
   draftColor: string;
   draftEmoji: string;
+  draftContent: string;
+  draftLanguage: string;
+  draftPrivacy: NotePrivacy;
   setView: (view: 'map' | 'ar' | 'anchor' | 'qr') => void;
   setIsTrackingLocation: (tracking: boolean) => void;
-  setIsCreating: (creating: boolean) => void;
-  setEditingNote: (note: Note | null) => void;
+  onStartCreate: () => void;
+  onCancelNoteFlow: () => void;
   setDraftColor: (color: string) => void;
   setDraftEmoji: (emoji: string) => void;
+  setDraftContent: (content: string) => void;
+  setDraftLanguage: (lang: string) => void;
+  setDraftPrivacy: (privacy: NotePrivacy) => void;
+  onProceedToPlacement: () => void;
   handleLogin: () => void;
   handleLogout: () => void;
   heading: number | null;
@@ -38,15 +46,23 @@ export const NavigationUI = ({
   isPermissionDenied,
   isCreating,
   editingNote,
+  placementStep,
   draftLocation,
   draftColor,
   draftEmoji,
+  draftContent,
+  draftLanguage,
+  draftPrivacy,
   setView,
   setIsTrackingLocation,
-  setIsCreating,
-  setEditingNote,
+  onStartCreate,
+  onCancelNoteFlow,
   setDraftColor,
   setDraftEmoji,
+  setDraftContent,
+  setDraftLanguage,
+  setDraftPrivacy,
+  onProceedToPlacement,
   handleLogin,
   handleLogout,
   heading,
@@ -212,9 +228,9 @@ export const NavigationUI = ({
       )}
 
       {/* Bottom Controls / Note Creator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-6 pointer-events-none">
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-6 pointer-events-none z-40">
         <AnimatePresence mode="wait">
-          {(isCreating || editingNote) ? (
+          {(isCreating || editingNote) && placementStep === 'editing_content' ? (
             <motion.div 
               key="note-creator"
               initial={{ y: '100%', opacity: 0 }}
@@ -224,29 +240,31 @@ export const NavigationUI = ({
             >
               <div className="flex justify-end mb-4">
                 <button 
-                  onClick={() => {
-                    setIsCreating(false);
-                    setEditingNote(null);
-                  }}
-                  className="p-3 bg-white text-stone-900 rounded-full shadow-xl border border-stone-100"
+                  type="button"
+                  onClick={onCancelNoteFlow}
+                  className="p-3 bg-white text-stone-900 rounded-full shadow-xl border border-stone-100 hover:bg-stone-50 transition-colors"
+                  title="Cancel"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
               <NoteCreator 
                 draftLocation={draftLocation} 
-                onNoteCreated={() => {
-                  setIsCreating(false);
-                  setEditingNote(null);
-                }} 
                 color={draftColor}
                 setColor={setDraftColor}
                 emoji={draftEmoji}
                 setEmoji={setDraftEmoji}
                 editingNote={editingNote}
+                content={draftContent}
+                setContent={setDraftContent}
+                language={draftLanguage}
+                setLanguage={setDraftLanguage}
+                privacy={draftPrivacy}
+                setPrivacy={setDraftPrivacy}
+                onProceedToPlacement={onProceedToPlacement}
               />
             </motion.div>
-          ) : (user && view !== 'qr') ? (
+          ) : (!isCreating && !editingNote && user && view !== 'qr') ? (
             <motion.div 
               key="drop-note-btn"
               initial={{ scale: 0.8, opacity: 0 }}
@@ -255,10 +273,8 @@ export const NavigationUI = ({
               className="flex justify-center pointer-events-auto"
             >
               <button 
-                onClick={() => {
-                  setIsCreating(true);
-                  setView('map');
-                }}
+                type="button"
+                onClick={onStartCreate}
                 className="group flex items-center gap-3 px-8 py-4 bg-[#081e2b] hover:bg-[#0e2a38] text-white rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border border-[#0d9488]/30"
               >
                 <Plus className="w-6 h-6 text-[#00a88f] group-hover:rotate-90 transition-transform" />

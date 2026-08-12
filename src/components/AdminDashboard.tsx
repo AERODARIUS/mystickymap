@@ -233,7 +233,7 @@ const ReportCard = ({ report, onAction }: { report: NoteReport, onAction: (r: No
             </div>
             <div className="relative">
               <div className="absolute -left-2 top-0 bottom-0 w-1 bg-stone-200 rounded-full" style={{ backgroundColor: note?.color || '#eee' }} />
-              <p className="text-xs text-stone-800 font-medium leading-relaxed bg-white p-4 rounded-2xl border border-stone-200 line-clamp-6 ml-1">
+              <p className="text-xs text-stone-800 font-medium leading-relaxed bg-white p-4 rounded-2xl border border-stone-200 whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin ml-1">
                 {comment ? comment.content : note?.content}
               </p>
               {comment && (

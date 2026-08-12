@@ -2,11 +2,41 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
 import { initializeFirestore, doc, getDocFromServer, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getRemoteConfig, fetchAndActivate, getValue } from 'firebase/remote-config';
+import { getRemoteConfig, fetchAndActivate, getValue, RemoteConfig } from 'firebase/remote-config';
+import { getAnalytics, logEvent as firebaseLogEvent, isSupported, Analytics } from 'firebase/analytics';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
+
+// Initialize Analytics safely
+let analyticsInstance: Analytics | null = null;
+const analyticsPromise: Promise<Analytics | null> = isSupported()
+  .then((supported) => {
+    if (supported) {
+      analyticsInstance = getAnalytics(app);
+      return analyticsInstance;
+    }
+    return null;
+  })
+  .catch((err) => {
+    console.warn('Firebase Analytics disabled/unsupported:', err);
+    return null;
+  });
+
+export async function logAnalyticsEvent(eventName: string, eventParams?: Record<string, unknown>) {
+  try {
+    const analytics = analyticsInstance || (await analyticsPromise);
+    if (analytics) {
+      firebaseLogEvent(analytics, eventName, eventParams);
+      console.debug(`[Google Analytics] Logged event: ${eventName}`, eventParams);
+    } else {
+      console.debug(`[Analytics Fallback] Event: ${eventName}`, eventParams);
+    }
+  } catch (err) {
+    console.warn('Failed to log analytics event:', err);
+  }
+}
 
 // Initialize Firestore with experimental long polling for better compatibility in AI Studio preview
 export const db = initializeFirestore(app, {
@@ -15,14 +45,20 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const remoteConfig = getRemoteConfig(app);
-export const googleProvider = new GoogleAuthProvider();
 
-// Configure Remote Config
-remoteConfig.settings.minimumFetchIntervalMillis = 3600000; // 1 hour by default
-if (process.env.NODE_ENV !== 'production') {
-  remoteConfig.settings.minimumFetchIntervalMillis = 0; // Fresh config on every reload in dev
+let remoteConfigInstance: RemoteConfig | null = null;
+try {
+  remoteConfigInstance = getRemoteConfig(app);
+  remoteConfigInstance.settings.minimumFetchIntervalMillis = 3600000; // 1 hour by default
+  if (process.env.NODE_ENV !== 'production') {
+    remoteConfigInstance.settings.minimumFetchIntervalMillis = 0; // Fresh config on every reload in dev
+  }
+} catch (error) {
+  console.warn('Firebase Remote Config / Installations not available in this environment:', error);
 }
+
+export const remoteConfig = remoteConfigInstance;
+export const googleProvider = new GoogleAuthProvider();
 
 export { signInWithPopup, onAuthStateChanged, ref, uploadBytes, getDownloadURL, fetchAndActivate, getValue, Timestamp, serverTimestamp };
 

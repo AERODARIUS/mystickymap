@@ -186,7 +186,7 @@ export const AnchorView = ({
                         </div>
                       )}
                       {note.type === 'text' ? (
-                        <p>{note.content}</p>
+                        <p className="whitespace-pre-wrap break-words max-h-60 overflow-y-auto scrollbar-thin">{note.content}</p>
                       ) : (
                         <div className="flex items-center gap-2 text-stone-500 italic">
                           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

@@ -7,7 +7,7 @@ import { User } from 'firebase/auth';
 import { Note } from '../types';
 import { SpeechButton } from './SpeechButton';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, logAnalyticsEvent } from '../firebase';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
 interface QRNotesViewProps {
@@ -91,6 +91,8 @@ export const QRNotesView = ({
               setScannedNote(note);
               setScanError(false);
               setIsScanning(false);
+              logAnalyticsEvent('qr_scan', { note_id: note.id, source: 'camera_scanner' });
+              logAnalyticsEvent('note_view', { note_id: note.id, mode: 'qr_camera', privacy: note.privacy });
               if (html5QrCode.getState() === 2) {
                 html5QrCode.pause();
               }
@@ -112,9 +114,12 @@ export const QRNotesView = ({
                       html5QrCode.pause();
                     }
                   } else {
-                    setScannedNote({ id: docSnap.id, ...data } as Note);
+                    const fetched = { id: docSnap.id, ...data } as Note;
+                    setScannedNote(fetched);
                     setScanError(false);
                     setIsScanning(false);
+                    logAnalyticsEvent('qr_scan', { note_id: fetched.id, source: 'camera_scanner' });
+                    logAnalyticsEvent('note_view', { note_id: fetched.id, mode: 'qr_camera', privacy: fetched.privacy });
                     if (html5QrCode.getState() === 2) {
                       html5QrCode.pause();
                     }
@@ -262,7 +267,7 @@ export const QRNotesView = ({
                       { scannedNote.privacy === 'unlisted' && <Link className="w-4 h-4 text-white/80" /> }
                       { scannedNote.privacy === 'public' && <Globe className="w-4 h-4 text-white/80" /> }
                     </div>
-                    <p className="text-lg font-handwriting leading-relaxed italic">
+                    <p className="text-base font-handwriting leading-relaxed italic whitespace-pre-wrap break-words max-h-[50vh] overflow-y-auto scrollbar-thin">
                       "{scannedNote.content}"
                     </p>
                   </div>
