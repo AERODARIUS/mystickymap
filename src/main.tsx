@@ -7,6 +7,17 @@ import { registerSW } from 'virtual:pwa-register';
 import { logger } from './services/logger';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+// Clean up any stale or poisoned Google Maps caches created by previous Service Worker configurations
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.keys().then((keys) => {
+    for (const key of keys) {
+      if (key.includes('google-maps') || key.includes('maps-api')) {
+        caches.delete(key).catch(() => {});
+      }
+    }
+  }).catch(() => {});
+}
+
 // Register service worker
 registerSW({ immediate: true });
 

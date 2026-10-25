@@ -26,10 +26,10 @@
   <!-- App Icon Background -->
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
   
-  {/* Base Shadow */}
+  <!-- Base Shadow -->
   <ellipse cx="256" cy="440" rx="85" ry="16" fill="#000000" opacity="0.4" />
 
-  {/* Main Pin Shape */}
+  <!-- Main Pin Shape -->
   <g filter="url(#shadow)">
     <path 
       d="M256 420C256 420 400 270 400 170C400 90.4772 335.523 26 256 26C176.477 26 112 90.4772 112 170C112 270 256 420 256 420Z" 
@@ -42,4 +42,3 @@
     />
   </g>
 </svg>
-

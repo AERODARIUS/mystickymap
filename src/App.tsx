@@ -32,7 +32,12 @@ import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useLocation } from './hooks/useLocation';
 import { Note, Comment, NotePrivacy } from './types';
 
-const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
+const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
+const API_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  metaEnv?.VITE_GOOGLE_MAPS_API_KEY ||
+  metaEnv?.GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'undefined' && API_KEY !== '';
 
 export default function App() {
@@ -322,6 +327,7 @@ export default function App() {
                 style={{ width: '100%', height: '100%' }}
                 gestureHandling="greedy"
                 disableDefaultUI
+                internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
               >
                 <MapController 
                   isCreating={isCreating}
