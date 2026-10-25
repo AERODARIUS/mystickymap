@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield } from 'lucide-react';
+import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield, Cookie } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
@@ -37,6 +37,7 @@ interface NavigationUIProps {
   heading: number | null;
   isAdmin?: boolean;
   onOpenAdmin?: () => void;
+  onOpenCookieConsent?: () => void;
 }
 
 export const NavigationUI = ({
@@ -67,7 +68,8 @@ export const NavigationUI = ({
   handleLogout,
   heading,
   isAdmin,
-  onOpenAdmin
+  onOpenAdmin,
+  onOpenCookieConsent
 }: NavigationUIProps) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
@@ -134,6 +136,17 @@ export const NavigationUI = ({
                       <span className="text-xs font-bold">{opt.label}</span>
                     </button>
                   ))}
+                  <div className="border-t border-stone-100 my-1" />
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenCookieConsent?.();
+                    }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#f0fdfa] transition-colors text-stone-600"
+                  >
+                    <Cookie className="w-4 h-4 text-[#0d9488]" />
+                    <span className="text-xs font-bold">{t('consent.manage_cookies', 'Cookie Preferences')}</span>
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

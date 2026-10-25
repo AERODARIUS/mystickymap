@@ -92,6 +92,23 @@ const resources = {
         loading: "Loading discussion...",
         error: "Failed to load comments",
         character_limit: "Character limit reached"
+      },
+      consent: {
+        banner_title: "Privacy & Cookie Consent",
+        banner_desc: "We use Google Analytics and cookies to measure interactions and improve your experience in accordance with Google Consent Mode.",
+        accept_all: "Accept All",
+        reject_all: "Decline Non-Essential",
+        customize: "Customize",
+        save_preferences: "Save Preferences",
+        preferences_title: "Cookie & Consent Preferences",
+        necessary_title: "Strictly Necessary",
+        necessary_desc: "Essential for core functionality such as user authentication, session security, and basic map controls. Cannot be disabled.",
+        analytics_title: "Analytics & Statistics (Google Analytics)",
+        analytics_desc: "Allows Google Analytics (analytics_storage) to measure visits, view navigation, and feature interactions to improve Spotheon.",
+        marketing_title: "Personalization & Consent Signals",
+        marketing_desc: "Allows Google Consent Mode signals (ad_storage, ad_user_data, ad_personalization) for conversion modeling and personalized experience.",
+        always_active: "Always Active",
+        manage_cookies: "Cookie Preferences"
       }
     }
   },
@@ -184,6 +201,23 @@ const resources = {
         loading: "Cargando discusión...",
         error: "Error al cargar comentarios",
         character_limit: "Límite de caracteres alcanzado"
+      },
+      consent: {
+        banner_title: "Consentimiento de privacidad y cookies",
+        banner_desc: "Utilizamos Google Analytics y cookies para medir interacciones y mejorar su experiencia de acuerdo con el modo de consentimiento de Google.",
+        accept_all: "Aceptar todo",
+        reject_all: "Rechazar no esenciales",
+        customize: "Personalizar",
+        save_preferences: "Guardar preferencias",
+        preferences_title: "Preferencias de cookies y consentimiento",
+        necessary_title: "Estrictamente necesarias",
+        necessary_desc: "Esenciales para el funcionamiento básico como autenticación de usuario, seguridad de sesión y controles del mapa. No se pueden desactivar.",
+        analytics_title: "Estadísticas y análisis (Google Analytics)",
+        analytics_desc: "Permite a Google Analytics (analytics_storage) medir visitas, navegación e interacciones para mejorar Spotheon.",
+        marketing_title: "Personalización y señales de consentimiento",
+        marketing_desc: "Permite señales del modo de consentimiento de Google (ad_storage, ad_user_data, ad_personalization) para modelización y experiencia personalizada.",
+        always_active: "Siempre activo",
+        manage_cookies: "Preferencias de cookies"
       }
     }
   },
@@ -263,6 +297,23 @@ const resources = {
        speech: {
         stop: "Parar de ouvir",
         listen: "Ouvir nota"
+      },
+      consent: {
+        banner_title: "Consentimento de privacidade e cookies",
+        banner_desc: "Usamos o Google Analytics e cookies para medir interações e melhorar sua experiência de acordo com o modo de consentimento do Google.",
+        accept_all: "Aceitar tudo",
+        reject_all: "Rejeitar não essenciais",
+        customize: "Personalizar",
+        save_preferences: "Salvar preferências",
+        preferences_title: "Preferências de cookies e consentimento",
+        necessary_title: "Estritamente necessárias",
+        necessary_desc: "Essenciais para funcionalidades básicas como autenticação de usuário e segurança. Não podem ser desativados.",
+        analytics_title: "Estatísticas e análises (Google Analytics)",
+        analytics_desc: "Permite ao Google Analytics medir visitas e interações para melhorar o Spotheon.",
+        marketing_title: "Personalização e sinais de anúncios",
+        marketing_desc: "Permite sinais do modo de consentimento do Google para modelagem e personalização.",
+        always_active: "Sempre ativo",
+        manage_cookies: "Preferências de cookies"
       }
     }
   },
@@ -342,6 +393,23 @@ const resources = {
       speech: {
         stop: "Arrêter l'écoute",
         listen: "Écouter la note"
+      },
+      consent: {
+        banner_title: "Consentement à la confidentialité et aux cookies",
+        banner_desc: "Nous utilisons Google Analytics et des cookies pour mesurer les interactions et améliorer votre expérience conformément au mode de consentement de Google.",
+        accept_all: "Tout accepter",
+        reject_all: "Refuser non essentiels",
+        customize: "Personnaliser",
+        save_preferences: "Enregistrer les préférences",
+        preferences_title: "Préférences de cookies et consentement",
+        necessary_title: "Strictement nécessaires",
+        necessary_desc: "Essentiels pour les fonctionnalités de base telles que l'authentification et la sécurité. Ne peuvent pas être désactivés.",
+        analytics_title: "Statistiques et analyses (Google Analytics)",
+        analytics_desc: "Permet à Google Analytics de mesurer les visites et les interactions pour améliorer Spotheon.",
+        marketing_title: "Personnalisation et signaux publicitaires",
+        marketing_desc: "Permet les signaux du mode de consentement de Google pour la modélisation et la personnalisation.",
+        always_active: "Toujours actif",
+        manage_cookies: "Préférences de cookies"
       }
     }
   }

@@ -24,6 +24,7 @@ import { InstallPrompt } from './components/InstallPrompt';
 import { CommentsView } from './components/CommentsView';
 import { ReportModal } from './components/ReportModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { ConsentBanner } from './components/ConsentBanner';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
@@ -81,6 +82,7 @@ export default function App() {
   const [reportingNote, setReportingNote] = useState<Note | null>(null);
   const [reportingComment, setReportingComment] = useState<Comment | null>(null);
   const [showAdminHub, setShowAdminHub] = useState(false);
+  const [isCookieConsentOpen, setIsCookieConsentOpen] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const hasHandledUrlNote = useRef(false);
 
@@ -462,6 +464,7 @@ export default function App() {
               logAnalyticsEvent('admin_view');
               setShowAdminHub(true);
             }}
+            onOpenCookieConsent={() => setIsCookieConsentOpen(true)}
           />
 
           {/* Login Error Toast */}
@@ -507,6 +510,10 @@ export default function App() {
         />
         {showAdminHub && <AdminDashboard onClose={() => setShowAdminHub(false)} />}
         <InstallPrompt />
+        <ConsentBanner 
+          isOpenManually={isCookieConsentOpen} 
+          onCloseManual={() => setIsCookieConsentOpen(false)} 
+        />
       </APIProvider>
     </ErrorBoundary>
   );

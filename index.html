@@ -1,15 +1,43 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3T765C01YS"></script>
+    <!-- Google tag (gtag.js) with Google Consent Mode v2 -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
 
+      // Google Consent Mode v2 initialization
+      try {
+        var rawConsent = localStorage.getItem('spotheon_consent_mode_v2');
+        if (rawConsent) {
+          var saved = JSON.parse(rawConsent);
+          gtag('consent', 'default', {
+            'analytics_storage': saved.analytics ? 'granted' : 'denied',
+            'ad_storage': saved.marketing ? 'granted' : 'denied',
+            'ad_user_data': saved.marketing ? 'granted' : 'denied',
+            'ad_personalization': saved.marketing ? 'granted' : 'denied'
+          });
+        } else {
+          gtag('consent', 'default', {
+            'analytics_storage': 'denied',
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied'
+          });
+        }
+      } catch (e) {
+        gtag('consent', 'default', {
+          'analytics_storage': 'denied',
+          'ad_storage': 'denied',
+          'ad_user_data': 'denied',
+          'ad_personalization': 'denied'
+        });
+      }
+
+      gtag('js', new Date());
       gtag('config', 'G-3T765C01YS');
     </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3T765C01YS"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#2563EB" />
