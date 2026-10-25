@@ -26,12 +26,18 @@ const analyticsPromise: Promise<Analytics | null> = isSupported()
 
 export async function logAnalyticsEvent(eventName: string, eventParams?: Record<string, unknown>) {
   try {
+    // 1. Direct dispatch to Google tag (gtag.js)
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      window.gtag('event', eventName, eventParams);
+    }
+
+    // 2. Dispatch to Firebase Analytics instance
     const analytics = analyticsInstance || (await analyticsPromise);
     if (analytics) {
       firebaseLogEvent(analytics, eventName, eventParams);
       console.debug(`[Google Analytics] Logged event: ${eventName}`, eventParams);
     } else {
-      console.debug(`[Analytics Fallback] Event: ${eventName}`, eventParams);
+      console.debug(`[Google Analytics gtag] Logged event: ${eventName}`, eventParams);
     }
   } catch (err) {
     console.warn('Failed to log analytics event:', err);

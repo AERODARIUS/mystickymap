@@ -7,6 +7,7 @@ import { Note } from '../types';
 import { calculateBearing, calculateDistance } from '../lib/utils';
 import { SpeechButton } from './SpeechButton';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { logAnalyticsEvent } from '../firebase';
 
 export const ARView = ({ 
   notes, 
@@ -154,6 +155,7 @@ export const ARView = ({
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
+                          logAnalyticsEvent('comments_open', { note_id: note.id });
                           onShowComments(note);
                         }}
                         className="p-1.5 rounded-xl bg-white/20 text-white hover:bg-white/40 border border-white/10 transition-all hover:scale-110 active:scale-95"

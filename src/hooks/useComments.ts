@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { Comment } from '../types';
 
 export const useComments = (noteId: string | null, user: User | null) => {
@@ -45,13 +45,14 @@ export const useComments = (noteId: string | null, user: User | null) => {
     if (!user || !noteId) return;
 
     try {
-      await addDoc(collection(db, 'notes', noteId, 'comments'), {
+      const docRef = await addDoc(collection(db, 'notes', noteId, 'comments'), {
         content: content.trim(),
         authorId: user.uid,
         authorName: user.displayName || 'Anonymous',
         noteId,
         createdAt: serverTimestamp(),
       });
+      logAnalyticsEvent('comment_create', { note_id: noteId, comment_id: docRef.id });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `notes/${noteId}/comments`);
     }
@@ -61,6 +62,7 @@ export const useComments = (noteId: string | null, user: User | null) => {
     if (!noteId) return;
     try {
       await deleteDoc(doc(db, 'notes', noteId, 'comments', commentId));
+      logAnalyticsEvent('comment_delete', { note_id: noteId, comment_id: commentId });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `notes/${noteId}/comments/${commentId}`);
     }

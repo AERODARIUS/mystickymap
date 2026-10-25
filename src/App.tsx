@@ -109,6 +109,7 @@ export default function App() {
     setOriginalLocation(initLoc);
     setCandidateLocation(initLoc);
     setView('map');
+    logAnalyticsEvent('note_create_start');
   }, [userLocation]);
 
   const handleEditNote = useCallback((note: Note | null) => {
@@ -126,6 +127,7 @@ export default function App() {
       setOriginalLocation(loc);
       setCandidateLocation(loc);
       setView('map');
+      logAnalyticsEvent('note_edit_start', { note_id: note.id });
     } else {
       setOriginalLocation(null);
       setCandidateLocation(null);
@@ -136,7 +138,8 @@ export default function App() {
     if (!draftContent.trim()) return;
     setPlacementStep('placing_location');
     setView('map');
-  }, [draftContent]);
+    logAnalyticsEvent('note_placement_start', { privacy: draftPrivacy });
+  }, [draftContent, draftPrivacy]);
 
   const handleReturnToEditor = useCallback(() => {
     setPlacementStep('editing_content');
@@ -202,6 +205,12 @@ export default function App() {
     setCandidateLocation(null);
     setPlacementStep('editing_content');
     setDraftContent('');
+    logAnalyticsEvent('note_flow_cancel');
+  }, []);
+
+  const handleToggleTracking = useCallback((tracking: boolean) => {
+    setIsTrackingLocation(tracking);
+    logAnalyticsEvent('location_tracking_toggle', { enabled: tracking });
   }, []);
 
   const copyToClipboard = useCallback((id: string) => {
@@ -228,6 +237,11 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (userProfile) => {
       setUser(userProfile);
       setIsAuthReady(true);
+      if (userProfile && typeof window !== 'undefined' && typeof window.gtag === 'function') {
+        window.gtag('set', 'user_properties', {
+          user_id: userProfile.uid,
+        });
+      }
     });
     return unsubscribe;
   }, []);
@@ -277,6 +291,7 @@ export default function App() {
     setLoginError(null);
     try {
       await signInWithPopup(auth, googleProvider);
+      logAnalyticsEvent('login', { method: 'google' });
     } catch (error) {
       console.error("Login failed:", error);
       const firebaseError = error as { code?: string; message?: string };
@@ -296,6 +311,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      logAnalyticsEvent('logout');
       await auth.signOut();
       window.location.reload();
     } catch (error) {
@@ -429,7 +445,7 @@ export default function App() {
             draftLanguage={draftLanguage}
             draftPrivacy={draftPrivacy}
             setView={setView}
-            setIsTrackingLocation={setIsTrackingLocation}
+            setIsTrackingLocation={handleToggleTracking}
             onStartCreate={handleStartCreate}
             onCancelNoteFlow={handleCancelNoteFlow}
             setDraftColor={setDraftColor}
@@ -442,7 +458,10 @@ export default function App() {
             handleLogout={handleLogout}
             heading={heading}
             isAdmin={isAdmin && flags.enableAdminHub}
-            onOpenAdmin={() => setShowAdminHub(true)}
+            onOpenAdmin={() => {
+              logAnalyticsEvent('admin_view');
+              setShowAdminHub(true);
+            }}
           />
 
           {/* Login Error Toast */}

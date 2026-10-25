@@ -6,7 +6,7 @@ import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
 import { SpeechButton } from './SpeechButton';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
@@ -47,6 +47,7 @@ export const AnchorView = ({
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'notes', deleteId));
+      logAnalyticsEvent('note_delete', { note_id: deleteId });
       setDeleteId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `notes/${deleteId}`);
@@ -215,7 +216,10 @@ export const AnchorView = ({
                             className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5 rounded-full" 
                           />
                           <button 
-                            onClick={() => onShowComments(note)}
+                            onClick={() => {
+                              logAnalyticsEvent('comments_open', { note_id: note.id });
+                              onShowComments(note);
+                            }}
                             className="p-2.5 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-full transition-colors flex items-center justify-center"
                             title={t('comments.reply')}
                           >

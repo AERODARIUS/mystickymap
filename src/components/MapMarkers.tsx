@@ -8,7 +8,7 @@ import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { SpeechButton } from './SpeechButton';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
 interface MapMarkersProps {
@@ -62,6 +62,7 @@ export const MapMarkers = ({
     setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'notes', deleteId));
+      logAnalyticsEvent('note_delete', { note_id: deleteId });
       setSelectedNote(null);
       setDeleteId(null);
     } catch (error) {
@@ -115,7 +116,10 @@ export const MapMarkers = ({
         <AdvancedMarker 
           key={note.id} 
           position={note.location}
-          onClick={() => setSelectedNote(note)}
+          onClick={() => {
+            setSelectedNote(note);
+            logAnalyticsEvent('note_view', { note_id: note.id, mode: 'map_marker', privacy: note.privacy });
+          }}
         >
           <div 
             className="flex items-center justify-center w-10 h-10 rounded-full shadow-xl border-2 border-white transition-transform hover:scale-110 active:scale-95"
@@ -179,7 +183,10 @@ export const MapMarkers = ({
                   className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5" 
                 />
                 <button 
-                  onClick={() => onShowComments(selectedNote)}
+                  onClick={() => {
+                    logAnalyticsEvent('comments_open', { note_id: selectedNote.id });
+                    onShowComments(selectedNote);
+                  }}
                   className="p-2.5 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-full transition-colors flex items-center justify-center"
                   title={t('comments.reply')}
                 >

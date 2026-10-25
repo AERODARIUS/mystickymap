@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logAnalyticsEvent } from '../firebase';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -20,11 +21,13 @@ export function useInstallPrompt() {
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
+      logAnalyticsEvent('install_prompt_shown');
     };
 
     const installHandler = () => {
       setDeferredPrompt(null);
       setIsInstallable(false);
+      logAnalyticsEvent('app_installed');
       console.log('PWA was installed');
     };
 
@@ -47,8 +50,10 @@ export function useInstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
+      logAnalyticsEvent('pwa_install_accepted');
       console.log('User accepted the install prompt');
     } else {
+      logAnalyticsEvent('pwa_install_dismissed');
       console.log('User dismissed the install prompt');
     }
 

@@ -49,3 +49,10 @@ export interface SpeechRecognition extends EventTarget {
 export interface DeviceOrientationEventiOS extends DeviceOrientationEvent {
   webkitCompassHeading: number;
 }
+
+declare global {
+  interface Window {
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
+}

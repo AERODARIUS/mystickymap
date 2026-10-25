@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
-import { db, auth, handleFirestoreError, OperationType, serverTimestamp } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { Note, SUPPORTED_LANGUAGES, NotePrivacy } from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
@@ -123,6 +123,7 @@ export const NoteCreator = ({
       recognition.onstart = () => {
         setIsRecording(true);
         setSpeechDetected(false);
+        logAnalyticsEvent('voice_input_start', { language });
       };
 
       recognition.onspeechstart = () => {

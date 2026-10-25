@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
 import { Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { logAnalyticsEvent } from '../firebase';
 
 export const SpeechButton = memo(({ text, language = "en-US", className = "" }: { text: string, language?: string, className?: string }) => {
   const { t } = useTranslation();
@@ -18,6 +19,7 @@ export const SpeechButton = memo(({ text, language = "en-US", className = "" }: 
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     setIsSpeaking(true);
+    logAnalyticsEvent('speech_play', { language });
     window.speechSynthesis.speak(utterance);
   }, [isSpeaking, text, language]);
 

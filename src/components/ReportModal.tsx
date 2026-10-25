@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Send, CheckCircle, Info } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, NoteReport, Comment } from '../types';
-import { db, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
+import { db, serverTimestamp, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface ReportModalProps {
@@ -104,6 +104,13 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
       const localReports = JSON.parse(localStorage.getItem('spotheon_reports') || '{}');
       localReports[itemId] = true;
       localStorage.setItem('spotheon_reports', JSON.stringify(localReports));
+
+      logAnalyticsEvent('report_submit', {
+        item_type: comment ? 'comment' : 'note',
+        reason,
+        item_id: itemId,
+        note_id: comment ? comment.noteId : note!.id
+      });
 
       setIsSuccess(true);
       setTimeout(onClose, 2000);

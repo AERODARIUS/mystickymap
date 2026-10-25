@@ -1,10 +1,12 @@
 {
   "projectId": "mystickymap",
   "appId": "1:460728559828:web:48e583ab790ac235633341",
-  "apiKey": "AIzaSyDvFuAYZ5-2TtaaY7quIHUDCcmSgztNiag",
+  "apiKey": "AIzaSyDeOVsOxc83ssSo73I7SWfQGBrcGKK8pEk",
   "authDomain": "mystickymap.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-fe373ee0-539f-469d-ab1f-5d550c2627d6",
   "storageBucket": "mystickymap.appspot.com",
   "messagingSenderId": "460728559828",
-  "measurementId": ""
+  "measurementId": "G-3T765C01YS",
+  "oAuthClientId": "460728559828-8gi6jp4rp8idn5d3l3mh619qu1g7f8ra.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

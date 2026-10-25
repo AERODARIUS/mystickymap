@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { NoteReport, Note, ModerationState, Comment } from '../types';
 import { Shield, Trash2, CheckCircle, Clock, MapPin, AlertCircle, MessageCircle } from 'lucide-react';
 
@@ -46,6 +46,7 @@ export const AdminDashboard = ({ onClose }: { onClose: () => void }) => {
       } else {
         await updateDoc(doc(db, 'reports', report.id), { status: 'dismissed' });
       }
+      logAnalyticsEvent('admin_moderation_action', { action, report_id: report.id });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `reports/${report.id}`);
     }
