@@ -508,7 +508,16 @@ export default function App() {
             setReportingComment(null);
           }}
         />
-        {showAdminHub && <AdminDashboard onClose={() => setShowAdminHub(false)} />}
+        {showAdminHub && (
+          <AdminDashboard
+            user={user}
+            onClose={() => setShowAdminHub(false)}
+            onFocusNote={(note) => {
+              handleFocusNote(note);
+              setShowAdminHub(false);
+            }}
+          />
+        )}
         <InstallPrompt />
         <ConsentBanner 
           isOpenManually={isCookieConsentOpen} 

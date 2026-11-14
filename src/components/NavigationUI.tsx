@@ -174,7 +174,7 @@ export const NavigationUI = ({
             <button 
               onClick={onOpenAdmin}
               className="p-3 bg-stone-900 text-white rounded-2xl shadow-lg border border-stone-800 hover:bg-stone-800 transition-all"
-              title="Moderation Hub"
+              title="Admin Panel"
             >
               <Shield className="w-5 h-5" />
             </button>

@@ -1,0 +1,905 @@
+{
+  "totalNotes": 50,
+  "batches": [
+    {
+      "batch": 1,
+      "count": 20,
+      "file": "spotheon_piloto_batch_1.csv"
+    },
+    {
+      "batch": 2,
+      "count": 20,
+      "file": "spotheon_piloto_batch_2.csv"
+    },
+    {
+      "batch": 3,
+      "count": 10,
+      "file": "spotheon_piloto_batch_3.csv"
+    }
+  ],
+  "countsBySource": {
+    "combined_f1_f3_f4": 3,
+    "solo_f1_espacios_accesibles": 27,
+    "f2_habilitado_con_ide": 17,
+    "f2_en_tramite_con_ide": 3
+  },
+  "maxContentLength": 990,
+  "minContentLength": 425,
+  "omittedFuente1": [
+    {
+      "id": "111",
+      "title": "Banco de Seguros del Estado",
+      "reason": "Sin coordenadas válidas en campo Ubicación"
+    },
+    {
+      "id": "107",
+      "title": "MUNICIPIO CH",
+      "reason": "Sin coordenadas válidas en campo Ubicación"
+    },
+    {
+      "id": "30",
+      "title": "Espacio Saludable Rambla del Cerro",
+      "reason": "Sin coordenadas válidas en campo Ubicación"
+    }
+  ],
+  "omittedFuente3And4": [
+    {
+      "lugar": "Teatro de Verano",
+      "salasPublicasRows2023_2025": 180,
+      "reason": "Sin coordenadas en Salas públicas ni Entradas a espectáculos y ausente en Espacios accesibles; no se inventan ubicaciones"
+    },
+    {
+      "lugar": "Centro Cultural Florencio Sánchez",
+      "salasPublicasRows2023_2026": 688,
+      "reason": "Sin coordenadas en Salas públicas ni Entradas a espectáculos y ausente en Espacios accesibles; no se inventan ubicaciones"
+    }
+  ],
+  "omittedFuente2Stats": {
+    "filteredOutInvalidOrNonGastronomy": 7053,
+    "matchedHabilitado2027Plus": 1145,
+    "matchedEnTramite": 4,
+    "sampleNotInIdeSubset": [
+      {
+        "ralocaId": "40964",
+        "nombre": "CARMESI",
+        "dir": "CNEL ALEGRE Nº: 1248",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "32428",
+        "nombre": "EL PERAL",
+        "dir": "DR JAVIER BARRIOS AMORIN Nº: 1385",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "12808",
+        "nombre": "DISCO",
+        "dir": "DR JAVIER BARRIOS AMORIN Nº: 859",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "40713",
+        "nombre": "HECKLER BAR",
+        "dir": "AV RAMON ANADOR Nº: 3653",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "29779",
+        "nombre": "PAN Y PICO",
+        "dir": "AV RAMON ANADOR Nº: 3300",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "29814",
+        "nombre": "SAN PEDRO",
+        "dir": "AV RAMON ANADOR Nº: 3767",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "42688",
+        "nombre": "LA CUADRA",
+        "dir": "AV RAMON ANADOR Nº: 3967",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "37135",
+        "nombre": "EL RENACER DE LOS ALPES",
+        "dir": "AV RAMON ANADOR Nº: 3519",
+        "estado": "Vencido",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "48007",
+        "nombre": "HUMMUS",
+        "dir": "AV RAMON ANADOR Nº: 3525",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "17323",
+        "nombre": "DUBLIN",
+        "dir": "AV RAMON ANADOR Nº: 3431",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "18357",
+        "nombre": "LA PERDIZ",
+        "dir": "DR BOLIVAR BALIÑAS Nº: 2604",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "46914",
+        "nombre": "ACENTO CAFE",
+        "dir": "DR BOLIVAR BALIÑAS Nº: 2609",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "46356",
+        "nombre": "DEL PALACIO",
+        "dir": "JOSE GERMAN ARAUJO Nº: 1321",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "41797",
+        "nombre": "QUEENS",
+        "dir": "JOSE GERMAN ARAUJO Nº: 1337",
+        "estado": "Habilitado",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      },
+      {
+        "ralocaId": "32644",
+        "nombre": "PRINCESAS",
+        "dir": "JOSE GERMAN ARAUJO Nº: 1313",
+        "estado": "Vencido",
+        "reason": "Dirección no encontrada en el subconjunto descargado de IDE Montevideo"
+      }
+    ]
+  },
+  "entradas2025Stats": {
+    "validRows": 317013,
+    "malformedRowsSkipped": 0
+  },
+  "manifest": [
+    {
+      "noteId": "mvd_cultural_teatro_solis",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles",
+        "salas-publicas",
+        "entradas-a-espectaculos"
+      ],
+      "sourceIds": [
+        "40",
+        "Solis",
+        "Teatro Solís"
+      ],
+      "len": 990,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_cultural_sala_zitarrosa",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles",
+        "salas-publicas",
+        "entradas-a-espectaculos"
+      ],
+      "sourceIds": [
+        "5",
+        "Zitarrosa",
+        "Sala Zitarrosa"
+      ],
+      "len": 933,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_cultural_sala_verdi",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles",
+        "salas-publicas",
+        "entradas-a-espectaculos"
+      ],
+      "sourceIds": [
+        "60",
+        "Verdi",
+        "Sala Verdi"
+      ],
+      "len": 868,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_36",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "36"
+      ],
+      "salasCount": 9,
+      "len": 988,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_3",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "3"
+      ],
+      "salasCount": 8,
+      "len": 939,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_61",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "61"
+      ],
+      "salasCount": 1,
+      "len": 691,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_34",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "34"
+      ],
+      "salasCount": 2,
+      "len": 917,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_75",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "75"
+      ],
+      "salasCount": 3,
+      "len": 812,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_35",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "35"
+      ],
+      "salasCount": 7,
+      "len": 886,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_38",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "38"
+      ],
+      "salasCount": 10,
+      "len": 962,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_64",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "64"
+      ],
+      "salasCount": 1,
+      "len": 687,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_100",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "100"
+      ],
+      "salasCount": 1,
+      "len": 624,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_99",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "99"
+      ],
+      "salasCount": 1,
+      "len": 677,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_71",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares",
+        "espacios-accesibles-salas"
+      ],
+      "sourceIds": [
+        "71"
+      ],
+      "salasCount": 1,
+      "len": 688,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_112",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "112"
+      ],
+      "salasCount": 0,
+      "len": 439,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_105",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "105"
+      ],
+      "salasCount": 0,
+      "len": 425,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_11",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "11"
+      ],
+      "salasCount": 0,
+      "len": 609,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_109",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "109"
+      ],
+      "salasCount": 0,
+      "len": 469,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_113",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "113"
+      ],
+      "salasCount": 0,
+      "len": 441,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_98",
+      "batch": 1,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "98"
+      ],
+      "salasCount": 0,
+      "len": 480,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_95",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "95"
+      ],
+      "salasCount": 0,
+      "len": 487,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_110",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "110"
+      ],
+      "salasCount": 0,
+      "len": 440,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_62",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "62"
+      ],
+      "salasCount": 0,
+      "len": 481,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_4",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "4"
+      ],
+      "salasCount": 0,
+      "len": 527,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_108",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "108"
+      ],
+      "salasCount": 0,
+      "len": 615,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_73",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "73"
+      ],
+      "salasCount": 0,
+      "len": 572,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_39",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "39"
+      ],
+      "salasCount": 0,
+      "len": 622,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_37",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "37"
+      ],
+      "salasCount": 0,
+      "len": 518,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_97",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "97"
+      ],
+      "salasCount": 0,
+      "len": 512,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_acc_6",
+      "batch": 2,
+      "sources": [
+        "espacios-accesibles-lugares"
+      ],
+      "sourceIds": [
+        "6"
+      ],
+      "salasCount": 0,
+      "len": 521,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47943",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47943",
+        "PEREZ CASTELLANO|1515"
+      ],
+      "estado": "Habilitado",
+      "ccz": "1",
+      "len": 660,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47936",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47936",
+        "COLONIA|1508"
+      ],
+      "estado": "Habilitado",
+      "ccz": "2",
+      "len": 677,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47508",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47508",
+        "MICHIGAN|1404"
+      ],
+      "estado": "Habilitado",
+      "ccz": "7",
+      "len": 669,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47442",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47442",
+        "21 DE SETIEMBRE|2816"
+      ],
+      "estado": "Habilitado",
+      "ccz": "5",
+      "len": 648,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_46980",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "46980",
+        "ESTERO BELLACO|2835"
+      ],
+      "estado": "Habilitado",
+      "ccz": "4",
+      "len": 682,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47462",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47462",
+        "ADOLFO BERRO|1066"
+      ],
+      "estado": "Habilitado",
+      "ccz": "16",
+      "len": 652,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47371",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47371",
+        "CAMBARA|1604"
+      ],
+      "estado": "Habilitado",
+      "ccz": "8",
+      "len": 666,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_45932",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "45932",
+        "AGUSTIN ABREU|2290"
+      ],
+      "estado": "Habilitado",
+      "ccz": "6",
+      "len": 675,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47937",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47937",
+        "AIGUA|1199"
+      ],
+      "estado": "Habilitado",
+      "ccz": "15",
+      "len": 659,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_45137",
+      "batch": 2,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "45137",
+        "ARENAL GRANDE|2514"
+      ],
+      "estado": "Habilitado",
+      "ccz": "3",
+      "len": 645,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_31831",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "31831",
+        "GRECIA|4255"
+      ],
+      "estado": "Habilitado",
+      "ccz": "17",
+      "len": 653,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_33373",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "33373",
+        "28 DE FEBRERO|1008"
+      ],
+      "estado": "Habilitado",
+      "ccz": "13",
+      "len": 694,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_46248",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "46248",
+        "JULIAN ALVAREZ|71"
+      ],
+      "estado": "Habilitado",
+      "ccz": "14",
+      "len": 714,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_17200",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "17200",
+        "CARRERAS NACIONALES|3302"
+      ],
+      "estado": "Habilitado",
+      "ccz": "9",
+      "len": 628,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_45709",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "45709",
+        "MARCOS DE AVELLANEDA|4340"
+      ],
+      "estado": "Habilitado",
+      "ccz": "11",
+      "len": 657,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_42913",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "42913",
+        "FERNANDO MENCK|5932"
+      ],
+      "estado": "Habilitado",
+      "ccz": "12",
+      "len": 650,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_28944",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "28944",
+        "LA CARRETA|1855"
+      ],
+      "estado": "Habilitado",
+      "ccz": "18",
+      "len": 681,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47525",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47525",
+        "SOLANO GARCIA|2487"
+      ],
+      "estado": "En trámite",
+      "ccz": "5",
+      "len": 679,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_47411",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "47411",
+        "JUAN BENITO BLANCO|961"
+      ],
+      "estado": "En trámite",
+      "ccz": "5",
+      "len": 651,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    },
+    {
+      "noteId": "mvd_alim_46518",
+      "batch": 3,
+      "sources": [
+        "empresas-alimentarias-im",
+        "ide-direcciones-uruguay"
+      ],
+      "sourceIds": [
+        "46518",
+        "21 DE SETIEMBRE|2387"
+      ],
+      "estado": "En trámite",
+      "ccz": "2",
+      "len": 685,
+      "updatedAt": "2026-11-13T12:00:11Z"
+    }
+  ]
+}
