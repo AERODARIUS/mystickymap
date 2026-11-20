@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { Suspense, lazy, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield, Cookie } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
-import { Note, NotePrivacy } from '../types';
-import { NoteCreator } from './NoteCreator';
+import { ContentFormat, Note, NotePrivacy } from '../types';
 import { Logo } from './Logo';
+
+const NoteCreator = lazy(() => import('./NoteCreator').then((m) => ({ default: m.NoteCreator })));
 
 interface NavigationUIProps {
   user: User | null;
@@ -20,6 +21,7 @@ interface NavigationUIProps {
   draftColor: string;
   draftEmoji: string;
   draftContent: string;
+  draftContentFormat: ContentFormat;
   draftLanguage: string;
   draftPrivacy: NotePrivacy;
   setView: (view: 'map' | 'ar' | 'anchor' | 'qr') => void;
@@ -29,6 +31,7 @@ interface NavigationUIProps {
   setDraftColor: (color: string) => void;
   setDraftEmoji: (emoji: string) => void;
   setDraftContent: (content: string) => void;
+  setDraftContentFormat: (format: ContentFormat) => void;
   setDraftLanguage: (lang: string) => void;
   setDraftPrivacy: (privacy: NotePrivacy) => void;
   onProceedToPlacement: () => void;
@@ -52,6 +55,7 @@ export const NavigationUI = ({
   draftColor,
   draftEmoji,
   draftContent,
+  draftContentFormat,
   draftLanguage,
   draftPrivacy,
   setView,
@@ -61,6 +65,7 @@ export const NavigationUI = ({
   setDraftColor,
   setDraftEmoji,
   setDraftContent,
+  setDraftContentFormat,
   setDraftLanguage,
   setDraftPrivacy,
   onProceedToPlacement,
@@ -261,21 +266,32 @@ export const NavigationUI = ({
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <NoteCreator 
-                draftLocation={draftLocation} 
-                color={draftColor}
-                setColor={setDraftColor}
-                emoji={draftEmoji}
-                setEmoji={setDraftEmoji}
-                editingNote={editingNote}
-                content={draftContent}
-                setContent={setDraftContent}
-                language={draftLanguage}
-                setLanguage={setDraftLanguage}
-                privacy={draftPrivacy}
-                setPrivacy={setDraftPrivacy}
-                onProceedToPlacement={onProceedToPlacement}
-              />
+              <Suspense
+                fallback={
+                  <div className="bg-white p-6 rounded-t-3xl shadow-2xl border-t border-stone-100 text-center text-xs text-stone-400">
+                    Loading editor...
+                  </div>
+                }
+              >
+                <NoteCreator 
+                  key={editingNote ? editingNote.id : 'new-note'}
+                  draftLocation={draftLocation} 
+                  color={draftColor}
+                  setColor={setDraftColor}
+                  emoji={draftEmoji}
+                  setEmoji={setDraftEmoji}
+                  editingNote={editingNote}
+                  content={draftContent}
+                  setContent={setDraftContent}
+                  contentFormat={draftContentFormat}
+                  setContentFormat={setDraftContentFormat}
+                  language={draftLanguage}
+                  setLanguage={setDraftLanguage}
+                  privacy={draftPrivacy}
+                  setPrivacy={setDraftPrivacy}
+                  onProceedToPlacement={onProceedToPlacement}
+                />
+              </Suspense>
             </motion.div>
           ) : (!isCreating && !editingNote && user && view !== 'qr') ? (
             <motion.div 

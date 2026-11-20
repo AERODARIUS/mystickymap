@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import { Note } from '../types';
 import { SpeechButton } from './SpeechButton';
+import { RichTextViewer } from './RichTextViewer';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, logAnalyticsEvent } from '../firebase';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
@@ -267,12 +268,18 @@ export const QRNotesView = ({
                       { scannedNote.privacy === 'unlisted' && <Link className="w-4 h-4 text-white/80" /> }
                       { scannedNote.privacy === 'public' && <Globe className="w-4 h-4 text-white/80" /> }
                     </div>
-                    <p className="text-base font-handwriting leading-relaxed italic whitespace-pre-wrap break-words max-h-[50vh] overflow-y-auto scrollbar-thin">
-                      "{scannedNote.content}"
-                    </p>
+                    <div className="text-base font-handwriting leading-relaxed max-h-[50vh] overflow-y-auto scrollbar-thin">
+                      <RichTextViewer
+                        content={scannedNote.content || ''}
+                        contentFormat={scannedNote.contentFormat}
+                        variant="note"
+                        tone="dark"
+                        stopLinkPropagation
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <SpeechButton text={scannedNote.content || ''} language={scannedNote.language} />
+                    <SpeechButton text={scannedNote.content || ''} language={scannedNote.language} contentFormat={scannedNote.contentFormat} />
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();

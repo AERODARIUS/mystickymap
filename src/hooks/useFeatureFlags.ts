@@ -18,7 +18,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   enableARView: true,
   enableQRScanner: true,
   enableEmojiPins: true,
-  maxNoteLength: 500,
+  maxNoteLength: 1000,
   highlightNoteColor: '#10b981', // Emerald 500
   enableModeration: true,
   enableAdminHub: true,

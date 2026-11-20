@@ -1,11 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, Trash2, MessageSquare, Clock, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
-import { Note, MAX_COMMENT_LENGTH, Comment } from '../types';
+import {
+  Note,
+  MAX_COMMENT_LENGTH,
+  MAX_COMMENT_STORAGE_LENGTH,
+  Comment,
+} from '../types';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useComments } from '../hooks/useComments';
+import { RichTextViewer } from './RichTextViewer';
+import type { RichTextEditorChangeMeta, RichTextEditorHandle } from './RichTextEditor';
+import { validateContentLimits } from '../lib/richText';
+
+const LazyRichTextEditor = lazy(() => import('./RichTextEditor'));
 
 interface CommentsViewProps {
   note: Note | null;
@@ -19,14 +29,17 @@ interface CommentsViewProps {
 export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onReportNote }: CommentsViewProps) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
-  const [commentText, setCommentText] = useState('');
+  const [commentMarkdown, setCommentMarkdown] = useState('');
+  const [visibleLength, setVisibleLength] = useState(0);
+  const [storageLength, setStorageLength] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { comments, loading, addComment, deleteComment } = useComments(note?.id || null, user);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
 
   // Auto-scroll to bottom when comments change
   useEffect(() => {
-    if (scrollRef.current && !loading) {
+    if (scrollRef.current && !loading && typeof scrollRef.current.scrollTo === 'function') {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth'
@@ -34,14 +47,37 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
     }
   }, [comments, loading]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || isSubmitting) return;
+  const handleEditorChange = useCallback((markdown: string, meta: RichTextEditorChangeMeta) => {
+    setCommentMarkdown(markdown);
+    setVisibleLength(meta.visibleLength);
+    setStorageLength(meta.storageLength);
+  }, []);
+
+  const validation = validateContentLimits(
+    visibleLength,
+    commentMarkdown,
+    MAX_COMMENT_LENGTH,
+    MAX_COMMENT_STORAGE_LENGTH
+  );
+
+  const submitComment = useCallback(async () => {
+    if (!validation.valid || isSubmitting) return;
 
     setIsSubmitting(true);
-    await addComment(commentText.trim());
-    setCommentText('');
-    setIsSubmitting(false);
+    try {
+      await addComment(commentMarkdown.trim(), 'markdown');
+      editorRef.current?.clear();
+      setCommentMarkdown('');
+      setVisibleLength(0);
+      setStorageLength(0);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [validation.valid, isSubmitting, addComment, commentMarkdown]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitComment();
   };
 
   if (!note) return null;
@@ -50,23 +86,23 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center pointer-events-none">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm pointer-events-auto"
           />
-          
+
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-lg bg-white rounded-t-[32px] sm:rounded-3xl shadow-2xl pointer-events-auto flex flex-col max-h-[85vh] sm:max-h-[70vh]"
+            className="relative w-full max-w-lg bg-white rounded-t-[32px] sm:rounded-3xl shadow-2xl pointer-events-auto flex flex-col max-h-[85dvh] sm:max-h-[75dvh]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-stone-100">
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-100 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: note.color || '#10b981' }}>
                   <MessageSquare className="w-5 h-5 text-white" />
@@ -76,21 +112,29 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                   <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{t('anchor.created_by')} {note.authorName}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={onClose}
                 className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                aria-label="Close"
               >
                 <X className="w-6 h-6 text-stone-400" />
               </button>
             </div>
 
             {/* Note Context */}
-            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4">
-              <p className="text-sm text-stone-600 italic flex-1 whitespace-pre-wrap break-words max-h-36 overflow-y-auto scrollbar-thin">"{note.content}"</p>
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4 shrink-0">
+              <div className="text-sm text-stone-600 flex-1 max-h-36 overflow-y-auto scrollbar-thin min-w-0">
+                <RichTextViewer
+                  content={note.content || ''}
+                  contentFormat={note.contentFormat}
+                  variant="compact"
+                  tone="light"
+                />
+              </div>
               {flags.enableModeration && (
-                <button 
+                <button
                   onClick={() => onReportNote(note)}
-                  className="p-2 text-stone-600 hover:text-amber-500 transition-colors"
+                  className="p-2 text-stone-600 hover:text-amber-500 transition-colors shrink-0"
                   title="Report Note"
                 >
                   <AlertTriangle className="w-4 h-4" />
@@ -99,9 +143,9 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
             </div>
 
             {/* Comments List */}
-            <div 
+            <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-6 py-6 space-y-6"
+              className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
             >
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-10 space-y-3">
@@ -118,7 +162,7 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
               ) : (
                 comments.map((comment) => (
                   <div key={comment.id} className="group flex gap-3">
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className="text-[11px] font-black text-stone-900">{comment.authorName}</p>
                         <div className="flex items-center gap-2">
@@ -127,15 +171,16 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                             {comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
                           </span>
                           {user && (comment.authorId === user.uid || note.authorId === user.uid) && (
-                            <button 
+                            <button
                               onClick={() => deleteComment(comment.id)}
                               className="p-1 text-stone-300 hover:text-red-500 transition-colors"
+                              aria-label={t('comments.delete')}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {flags.enableModeration && (
-                            <button 
+                            <button
                               onClick={() => onReportComment(comment)}
                               className="p-1 text-stone-600 hover:text-amber-500 transition-colors"
                               title="Report Comment"
@@ -146,7 +191,13 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
                         </div>
                       </div>
                       <div className="p-3 bg-stone-100 rounded-2xl rounded-tl-none">
-                        <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap break-words">{comment.content}</p>
+                        <RichTextViewer
+                          content={comment.content}
+                          contentFormat={comment.contentFormat}
+                          variant="comment"
+                          tone="light"
+                          className="text-stone-700"
+                        />
                       </div>
                     </div>
                   </div>
@@ -155,35 +206,56 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
             </div>
 
             {/* Input Area */}
-            <div className="p-6 pt-2 border-t border-stone-100 bg-white rounded-b-3xl">
+            <div className="p-4 sm:p-6 pt-3 border-t border-stone-100 bg-white rounded-b-3xl shrink-0">
               {user ? (
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="relative">
-                    <textarea
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
-                      maxLength={MAX_COMMENT_LENGTH}
+                <form onSubmit={handleSubmit} className="space-y-2.5">
+                  <Suspense
+                    fallback={
+                      <div className="w-full h-24 bg-stone-100 rounded-2xl flex items-center justify-center text-xs text-stone-400">
+                        Loading editor...
+                      </div>
+                    }
+                  >
+                    <LazyRichTextEditor
+                      ref={editorRef}
+                      mode="comment"
+                      initialContent=""
+                      contentFormat="markdown"
+                      maxVisibleLength={MAX_COMMENT_LENGTH}
+                      maxStorageLength={MAX_COMMENT_STORAGE_LENGTH}
                       placeholder={t('comments.placeholder')}
-                      rows={2}
-                      className="w-full p-4 pr-12 bg-stone-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-stone-900 outline-none resize-none"
+                      compact
+                      className="bg-stone-100 border-stone-200 focus-within:ring-stone-900"
+                      onChange={handleEditorChange}
+                      onSubmitShortcut={submitComment}
                     />
-                    <div className="absolute bottom-3 right-3">
-                      <button
-                        type="submit"
-                        disabled={!commentText.trim() || isSubmitting}
-                        className="p-2.5 bg-[#081e2b] text-[#00a88f] hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-lg border border-[#0d9488]/30"
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center px-1">
-                    <p className={`text-[10px] font-bold ${commentText.length >= MAX_COMMENT_LENGTH ? 'text-red-500' : 'text-stone-400'}`}>
-                      {commentText.length} / {MAX_COMMENT_LENGTH}
+                  </Suspense>
+
+                  {validation.exceedsStorage && (
+                    <p className="text-[11px] font-semibold text-red-600 px-1" role="alert">
+                      Formatting exceeds comment storage limit ({storageLength} / {MAX_COMMENT_STORAGE_LENGTH}).
                     </p>
-                    {commentText.length >= MAX_COMMENT_LENGTH && (
-                      <p className="text-[10px] font-bold text-red-500 uppercase tracking-tighter">{t('comments.character_limit')}</p>
-                    )}
+                  )}
+
+                  <div className="flex justify-between items-center gap-3 px-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className={`text-[10px] font-bold ${visibleLength >= MAX_COMMENT_LENGTH || validation.exceedsStorage ? 'text-red-500' : 'text-stone-400'}`}>
+                        {visibleLength} / {MAX_COMMENT_LENGTH}
+                      </p>
+                      {visibleLength >= MAX_COMMENT_LENGTH && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-tighter truncate">{t('comments.character_limit')}</p>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!validation.valid || isSubmitting}
+                      aria-label={t('comments.send')}
+                      className="px-4 py-2 bg-[#081e2b] text-[#00a88f] hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-md border border-[#0d9488]/30 flex items-center gap-1.5 text-xs font-bold shrink-0"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{t('comments.send')}</span>
+                    </button>
                   </div>
                 </form>
               ) : (

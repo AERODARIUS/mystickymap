@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
-import { Comment } from '../types';
+import { Comment, ContentFormat, MAX_COMMENT_STORAGE_LENGTH } from '../types';
 
 export const useComments = (noteId: string | null, user: User | null) => {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -41,14 +41,20 @@ export const useComments = (noteId: string | null, user: User | null) => {
     };
   }, [noteId]);
 
-  const addComment = async (content: string) => {
+  const addComment = async (content: string, contentFormat: ContentFormat = 'markdown') => {
     if (!user || !noteId) return;
+
+    const trimmed = content.trim();
+    if (!trimmed || trimmed.length > MAX_COMMENT_STORAGE_LENGTH) {
+      return;
+    }
 
     try {
       const docRef = await addDoc(collection(db, 'notes', noteId, 'comments'), {
-        content: content.trim(),
+        content: trimmed,
+        contentFormat,
         authorId: user.uid,
-        authorName: user.displayName || 'Anonymous',
+        authorName: (user.displayName || 'Anonymous').substring(0, 100),
         noteId,
         createdAt: serverTimestamp(),
       });

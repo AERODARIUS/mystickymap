@@ -1,19 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { Suspense, lazy, useState, useRef, useCallback } from 'react';
 import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { Note, SUPPORTED_LANGUAGES, NotePrivacy } from '../types';
+import {
+  ContentFormat,
+  MAX_NOTE_LENGTH,
+  MAX_NOTE_STORAGE_LENGTH,
+  Note,
+  SUPPORTED_LANGUAGES,
+  NotePrivacy,
+} from '../types';
 import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionConstructor } from '../types/dom';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import type { RichTextEditorChangeMeta, RichTextEditorHandle } from './RichTextEditor';
+import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from '../lib/richText';
 
-const RecognitionConstructor = (typeof window !== 'undefined') 
-  ? ((window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).SpeechRecognition || (window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).webkitSpeechRecognition) 
+const LazyRichTextEditor = lazy(() => import('./RichTextEditor'));
+
+const RecognitionConstructor = (typeof window !== 'undefined')
+  ? ((window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).SpeechRecognition || (window as unknown as { SpeechRecognition: SpeechRecognitionConstructor; webkitSpeechRecognition: SpeechRecognitionConstructor }).webkitSpeechRecognition)
   : null;
 
-export const NoteCreator = ({ 
-  draftLocation, 
+export const NoteCreator = ({
+  draftLocation,
   onNoteCreated,
   color,
   setColor,
@@ -22,13 +33,15 @@ export const NoteCreator = ({
   editingNote,
   content: propContent,
   setContent: propSetContent,
+  contentFormat: propContentFormat,
+  setContentFormat: propSetContentFormat,
   language: propLanguage,
   setLanguage: propSetLanguage,
   privacy: propPrivacy,
   setPrivacy: propSetPrivacy,
   onProceedToPlacement
-}: { 
-  draftLocation: { lat: number, lng: number } | null, 
+}: {
+  draftLocation: { lat: number, lng: number } | null,
   onNoteCreated?: () => void,
   color: string,
   setColor: (color: string) => void,
@@ -37,6 +50,8 @@ export const NoteCreator = ({
   editingNote?: Note | null,
   content?: string,
   setContent?: (content: string) => void,
+  contentFormat?: ContentFormat,
+  setContentFormat?: (format: ContentFormat) => void,
   language?: string,
   setLanguage?: (lang: string) => void,
   privacy?: NotePrivacy,
@@ -46,12 +61,15 @@ export const NoteCreator = ({
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
   const [localContent, setLocalContent] = useState(editingNote?.content || '');
+  const [localContentFormat, setLocalContentFormat] = useState<ContentFormat>(
+    editingNote ? (editingNote.contentFormat || 'plain') : 'markdown'
+  );
   const [localLanguage, setLocalLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
   const [localPrivacy, setLocalPrivacy] = useState<NotePrivacy>(editingNote?.privacy || 'public');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const content = propContent !== undefined ? propContent : localContent;
-  const setContent = (val: string | ((prev: string) => string)) => {
+  const setContent = useCallback((val: string | ((prev: string) => string)) => {
     if (propSetContent) {
       if (typeof val === 'function') {
         propSetContent(val(content));
@@ -61,7 +79,13 @@ export const NoteCreator = ({
     } else {
       setLocalContent(val);
     }
-  };
+  }, [propSetContent, content]);
+
+  const contentFormat: ContentFormat = propContentFormat !== undefined ? propContentFormat : localContentFormat;
+  const setContentFormat = useCallback((format: ContentFormat) => {
+    if (propSetContentFormat) propSetContentFormat(format);
+    else setLocalContentFormat(format);
+  }, [propSetContentFormat]);
 
   const language = propLanguage !== undefined ? propLanguage : localLanguage;
   const setLanguage = (val: string) => {
@@ -74,7 +98,15 @@ export const NoteCreator = ({
     if (propSetPrivacy) propSetPrivacy(val);
     else setLocalPrivacy(val);
   };
-  
+
+  const maxNoteLength = flags.maxNoteLength >= MAX_NOTE_LENGTH ? flags.maxNoteLength : MAX_NOTE_LENGTH;
+
+  const [visibleLength, setVisibleLength] = useState(() =>
+    countVisibleCharacters(markdownToPlainText(content, contentFormat))
+  );
+  const [storageLength, setStorageLength] = useState(() => content.trim().length);
+  const editorRef = useRef<RichTextEditorHandle>(null);
+
   const allEmojis = [
     // Smileys
     '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
@@ -83,8 +115,6 @@ export const NoteCreator = ({
     // Activities & Objects
     '📝', '🔥', '💡', '💬', '🏠', '📍', '🗺️', '📸', '🎨', '🎉', '⭐', '✨', '🌈', '☀️', '🌙', '☁️', '❄️', '🍔', '🍕', '🍺', '☕', '🏢', '🚗', '🚲', '⚡', '👣', '🎒', '🧗', '🐕', '🐱', '🌳', '🌊', '⚽', '🏀', '🎮', '🎧', '📱', '💻', '⌚', '🎁', '🎈', '🛒', '🔑', '🔒', '💎', '💰'
   ];
-
-  const maxNoteLength = flags.maxNoteLength || 500;
 
   // Audio transcription state
   const [isRecording, setIsRecording] = useState(false);
@@ -106,6 +136,13 @@ export const NoteCreator = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleEditorChange = useCallback((markdown: string, meta: RichTextEditorChangeMeta) => {
+    setContent(markdown);
+    setContentFormat('markdown');
+    setVisibleLength(meta.visibleLength);
+    setStorageLength(meta.storageLength);
+  }, [setContent, setContentFormat]);
+
   const startRecording = () => {
     if (!RecognitionConstructor) {
       alert("Your browser does not support voice recognition. Please try Chrome or Safari.");
@@ -115,7 +152,7 @@ export const NoteCreator = ({
     try {
       const recognition = new RecognitionConstructor() as SpeechRecognition;
       recognitionRef.current = recognition;
-      
+
       recognition.lang = language;
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -165,12 +202,16 @@ export const NoteCreator = ({
         }
 
         if (final) {
-          setContent(prev => {
-            const current = prev.trim();
-            const addition = final.trim();
-            const combined = current ? `${current} ${addition}` : addition;
-            return combined.slice(0, maxNoteLength);
-          });
+          if (editorRef.current) {
+            editorRef.current.insertTranscript(final);
+          } else {
+            setContent(prev => {
+              const current = prev.trim();
+              const addition = final.trim();
+              const combined = current ? `${current} ${addition}` : addition;
+              return combined.slice(0, maxNoteLength);
+            });
+          }
           setInterimTranscript('');
         } else {
           setInterimTranscript(interim);
@@ -191,9 +232,16 @@ export const NoteCreator = ({
     }
   };
 
+  const validation = validateContentLimits(
+    visibleLength,
+    content,
+    maxNoteLength,
+    MAX_NOTE_STORAGE_LENGTH
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!validation.valid) return;
 
     if (onProceedToPlacement) {
       onProceedToPlacement();
@@ -207,6 +255,7 @@ export const NoteCreator = ({
       if (editingNote) {
         const updates = {
           content: content.trim(),
+          contentFormat,
           privacy,
           updatedAt: serverTimestamp(),
           color,
@@ -220,6 +269,7 @@ export const NoteCreator = ({
         const noteData = {
           type: 'text',
           content: content.trim(),
+          contentFormat,
           location: draftLocation,
           authorId: auth.currentUser.uid,
           authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
@@ -232,7 +282,7 @@ export const NoteCreator = ({
         };
         await addDoc(collection(db, 'notes'), noteData);
       }
-      
+
       if (onNoteCreated) onNoteCreated();
     } catch (error) {
       handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, editingNote ? `notes/${editingNote.id}` : 'notes');
@@ -268,20 +318,21 @@ export const NoteCreator = ({
   };
 
   return (
-    <div className="bg-white p-6 pb-10 rounded-t-3xl shadow-2xl border-t border-stone-100">
+    <div className="bg-white p-5 sm:p-6 pb-8 sm:pb-10 rounded-t-3xl shadow-2xl border-t border-stone-100 max-h-[82dvh] overflow-y-auto scrollbar-thin">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <h3 className="font-bold text-stone-900 whitespace-nowrap">
             {editingNote ? t('creator.edit_note') : t('creator.new_note')}
           </h3>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {['#0d9488', '#00a88f', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'].map(c => (
-              <button 
+              <button
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
                 className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-stone-900 scale-110' : 'border-stone-100'}`}
                 style={{ backgroundColor: c }}
+                aria-label={`Color ${c}`}
               />
             ))}
           </div>
@@ -293,6 +344,7 @@ export const NoteCreator = ({
               type="button"
               onClick={() => setIsEmojiPopoverOpen(!isEmojiPopoverOpen)}
               className="p-2 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors flex items-center gap-2"
+              aria-label="Choose emoji"
             >
               <span className="text-xl leading-none">{emoji}</span>
               <Smile className="w-4 h-4 text-stone-500" />
@@ -321,23 +373,35 @@ export const NoteCreator = ({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative group">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, maxNoteLength))}
-            placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
-            className={`w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none h-32 text-stone-800 ${isRecording ? 'ring-2 ring-emerald-100' : ''}`}
-            maxLength={maxNoteLength}
-          />
-          
+          <Suspense
+            fallback={
+              <div className="w-full h-36 p-4 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-center text-xs text-stone-400">
+                Loading editor...
+              </div>
+            }
+          >
+            <LazyRichTextEditor
+              ref={editorRef}
+              mode="note"
+              initialContent={content}
+              contentFormat={contentFormat}
+              maxVisibleLength={maxNoteLength}
+              maxStorageLength={MAX_NOTE_STORAGE_LENGTH}
+              placeholder={isRecording ? t('creator.listening') : t('creator.placeholder')}
+              className={isRecording ? 'ring-2 ring-emerald-200 border-emerald-300' : ''}
+              onChange={handleEditorChange}
+            />
+          </Suspense>
+
           {interimTranscript && isRecording && (
-            <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 pointer-events-none">
-              <p className="text-stone-400 italic text-sm animate-pulse line-clamp-2 bg-white/40 p-2 rounded-lg backdrop-blur-sm">
+            <div className="mt-1.5 pointer-events-none">
+              <p className="text-stone-500 italic text-xs animate-pulse line-clamp-2 bg-emerald-50/80 border border-emerald-100 px-3 py-1.5 rounded-xl">
                 "{interimTranscript}"
               </p>
             </div>
           )}
 
-          <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-2 z-10">
             {isRecording && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-full border border-emerald-100 shadow-sm animate-in fade-in slide-in-from-top-1">
                 <div className={`w-1.5 h-1.5 rounded-full ${speechDetected ? 'bg-emerald-500 scale-125 transition-transform duration-75' : 'bg-emerald-200'} `} />
@@ -346,12 +410,19 @@ export const NoteCreator = ({
                 </span>
               </div>
             )}
-            {!isRecording && content.length > 0 && (
-              <button 
+            {!isRecording && visibleLength > 0 && (
+              <button
                 type="button"
-                onClick={() => setContent('')}
-                className="p-1.5 bg-stone-100 text-stone-400 hover:text-stone-600 rounded-full hover:bg-stone-200 transition-colors"
+                onClick={() => {
+                  editorRef.current?.clear();
+                  setContent('');
+                  setContentFormat('markdown');
+                  setVisibleLength(0);
+                  setStorageLength(0);
+                }}
+                className="p-1.5 bg-stone-200/80 text-stone-500 hover:text-stone-700 rounded-full hover:bg-stone-300/80 transition-colors"
                 title={t('creator.clear_text')}
+                aria-label={t('creator.clear_text')}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -359,15 +430,25 @@ export const NoteCreator = ({
           </div>
         </div>
 
-        {/* Controls and Stats below Textarea */}
+        {validation.exceedsStorage && (
+          <p className="text-xs font-semibold text-red-600 px-1" role="alert">
+            Formatted content exceeds storage limit ({storageLength} / {MAX_NOTE_STORAGE_LENGTH}). Please shorten links or text.
+          </p>
+        )}
+
+        {/* Controls and Stats below Editor */}
         <div className="space-y-4">
           {/* Row 1: Char Count, Mic, Language */}
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className={`text-xs font-mono font-medium px-3 py-2 rounded-xl border transition-colors ${
-                content.length >= maxNoteLength ? 'bg-red-50 border-red-200 text-red-600' : content.length >= (maxNoteLength * 0.9) ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-stone-50 border-stone-200 text-stone-400'
+                visibleLength >= maxNoteLength || validation.exceedsStorage
+                  ? 'bg-red-50 border-red-200 text-red-600'
+                  : visibleLength >= (maxNoteLength * 0.9)
+                  ? 'bg-amber-50 border-amber-200 text-amber-600'
+                  : 'bg-stone-50 border-stone-200 text-stone-400'
               }`}>
-                {content.length} / {maxNoteLength}
+                {visibleLength} / {maxNoteLength}
               </span>
 
               {isSpeechSupported && (
@@ -375,10 +456,11 @@ export const NoteCreator = ({
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
                   className={`p-2 rounded-xl transition-all shadow-sm ${
-                    isRecording 
-                      ? 'bg-red-600 text-white animate-pulse' 
+                    isRecording
+                      ? 'bg-red-600 text-white animate-pulse'
                       : 'bg-red-500 text-white hover:bg-red-600 transform hover:scale-105'
                   }`}
+                  aria-label={isRecording ? 'Stop voice dictation' : 'Start voice dictation'}
                 >
                   {isRecording ? (
                     <Square className="w-5 h-5 fill-current" />
@@ -390,10 +472,11 @@ export const NoteCreator = ({
 
               <div className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
                 <Languages className="w-4 h-4 text-stone-400" />
-                <select 
+                <select
                    value={language}
                    onChange={(e) => setLanguage(e.target.value)}
                    className="text-xs bg-transparent outline-none font-medium text-stone-600 appearance-none cursor-pointer pr-1"
+                   aria-label="Note language"
                 >
                    {SUPPORTED_LANGUAGES.map(lang => (
                      <option key={lang.code} value={lang.code}>{lang.label}</option>
@@ -416,7 +499,7 @@ export const NoteCreator = ({
                       </button>
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
-                      <Tooltip.Content 
+                      <Tooltip.Content
                         className="bg-stone-900 text-white p-3 rounded-xl shadow-xl text-xs max-w-xs z-[100] animate-in fade-in zoom-in-95 duration-200"
                         sideOffset={5}
                       >
@@ -457,7 +540,7 @@ export const NoteCreator = ({
 
         <button
           type="submit"
-          disabled={isSubmitting || !content.trim()}
+          disabled={isSubmitting || !validation.valid}
           className="w-fit px-10 py-3.5 bg-[#081e2b] text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#0e2a38] disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95 border border-[#0d9488]/40"
         >
           {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-[#00a88f] rounded-full animate-spin" /> : <Send className="w-5 h-5 text-[#00a88f]" />}

@@ -1,4 +1,5 @@
-import { NoteReport } from '../types';
+import { ContentFormat, NoteReport } from '../types';
+import { markdownToPlainText } from './richText';
 
 /**
  * Calculates a simple risk score for a note based on its content and reports.
@@ -9,7 +10,11 @@ import { NoteReport } from '../types';
  * - 31-60: Medium risk (Flag for review)
  * - 61-100: High risk (Immediate attention)
  */
-export const calculateRiskScore = (content: string, reports: NoteReport[]): number => {
+export const calculateRiskScore = (
+  content: string,
+  reports: NoteReport[],
+  contentFormat?: ContentFormat
+): number => {
   let score = 0;
 
   // 1. Content-based scoring (Keywords)
@@ -19,7 +24,7 @@ export const calculateRiskScore = (content: string, reports: NoteReport[]): numb
     'offensive', 'hate', 'kill', 'die', 'stupid'
   ];
   
-  const lowercaseContent = content.toLowerCase();
+  const lowercaseContent = markdownToPlainText(content, contentFormat).toLowerCase();
   suspiciousKeywords.forEach(word => {
     if (lowercaseContent.includes(word)) {
       score += 15;

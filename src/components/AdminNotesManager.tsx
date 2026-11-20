@@ -3,6 +3,7 @@ import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle } from 'lucide-react';
 import { db, logAnalyticsEvent } from '../firebase';
 import { ModerationState, Note, NotePrivacy } from '../types';
+import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
 
 interface AdminNotesManagerProps {
   notes: Note[];
@@ -31,7 +32,9 @@ export const AdminNotesManager = ({
       const state = n.moderationState || 'visible';
       if (modFilter !== 'all' && state !== modFilter) return false;
       if (q) {
-        const matchContent = (n.content || '').toLowerCase().includes(q);
+        const plainContent = markdownToPlainText(n.content || '', n.contentFormat).toLowerCase();
+        const rawContent = (n.content || '').toLowerCase();
+        const matchContent = plainContent.includes(q) || rawContent.includes(q);
         const matchAuthor = (n.authorName || '').toLowerCase().includes(q);
         const matchId = n.id.toLowerCase().includes(q);
         if (!matchContent && !matchAuthor && !matchId) return false;
@@ -158,7 +161,9 @@ export const AdminNotesManager = ({
                     </td>
                     <td className="py-2.5 px-3 max-w-md">
                       <p className="text-stone-800 line-clamp-2 break-words">
-                        {note.content || '(Nota de audio)'}
+                        {note.content
+                          ? getPlainTextExcerpt(note.content, note.contentFormat, 160)
+                          : '(Nota de audio)'}
                       </p>
                     </td>
                     <td className="py-2.5 px-3 font-mono tabular-nums text-right text-stone-700 whitespace-nowrap">

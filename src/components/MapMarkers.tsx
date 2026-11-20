@@ -7,6 +7,7 @@ import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { SpeechButton } from './SpeechButton';
+import { RichTextViewer } from './RichTextViewer';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -163,7 +164,15 @@ export const MapMarkers = ({
                 </div>
               )}
             </div>
-            <p className="text-sm text-stone-800 font-medium leading-relaxed whitespace-pre-wrap break-words">{selectedNote.content}</p>
+            <div className="text-sm text-stone-800 font-medium leading-relaxed">
+              <RichTextViewer
+                content={selectedNote.content || ''}
+                contentFormat={selectedNote.contentFormat}
+                variant="compact"
+                tone="light"
+                stopLinkPropagation
+              />
+            </div>
             <div className="flex items-center justify-between mt-3 pt-2 border-t border-stone-100/50">
               <p className="text-[10px] text-stone-400">
                 {selectedNote.createdAt.toDate().toLocaleDateString()}
@@ -180,6 +189,7 @@ export const MapMarkers = ({
                 <SpeechButton 
                   text={selectedNote.content || ''} 
                   language={selectedNote.language}
+                  contentFormat={selectedNote.contentFormat}
                   className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5" 
                 />
                 <button 

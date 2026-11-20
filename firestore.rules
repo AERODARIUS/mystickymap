@@ -49,14 +49,16 @@ service cloud.firestore {
     
     function isValidNote(data) {
       return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'privacy']) &&
-             data.keys().size() <= 16 && 
+             data.keys().hasOnly(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'contentFormat', 'privacy', 'audioUrl', 'updatedAt', 'color', 'emoji', 'language', 'moderationState']) &&
+             data.keys().size() <= 14 && 
              data.type in ['text', 'audio'] &&
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() <= 100 &&
              data.location is map && data.location.lat is number && data.location.lng is number &&
              data.privacy is string && data.privacy in ['public', 'unlisted', 'private'] &&
              data.createdAt is timestamp &&
-             (!('content' in data) || (data.content is string && data.content.size() <= 2000)) &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 4000)) &&
+             (!('contentFormat' in data) || (data.contentFormat is string && data.contentFormat in ['plain', 'markdown'])) &&
              (!('audioUrl' in data) || (data.audioUrl is string && data.audioUrl.size() <= 500 && data.audioUrl.matches("^https://.*"))) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
              (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
@@ -76,8 +78,10 @@ service cloud.firestore {
 
     function isValidComment(data, noteId) {
       return data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt', 'noteId']) &&
-             data.keys().size() == 5 &&
-             data.content is string && data.content.size() <= 500 &&
+             data.keys().hasOnly(['content', 'contentFormat', 'authorId', 'authorName', 'createdAt', 'noteId']) &&
+             data.keys().size() >= 5 && data.keys().size() <= 6 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 1500 &&
+             (!('contentFormat' in data) || (data.contentFormat is string && data.contentFormat in ['plain', 'markdown'])) &&
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() <= 100 &&
              data.noteId is string && data.noteId == noteId &&
@@ -126,7 +130,7 @@ service cloud.firestore {
                          incoming().createdAt == existing().createdAt && 
                          incoming().updatedAt == request.time &&
                          (!('moderationState' in incoming()) || incoming().moderationState == existing().moderationState) &&
-                         affectedKeys().hasOnly(['content', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])
+                         affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])
                        ));
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());

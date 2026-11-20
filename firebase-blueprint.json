@@ -7,8 +7,13 @@
       "properties": {
         "content": {
           "type": "string",
-          "maxLength": 1000,
-          "description": "The text content of the note (optional if audio is present)."
+          "maxLength": 4000,
+          "description": "The text or serialized Markdown content of the note (up to 1000 visible characters; max 4000 stored characters)."
+        },
+        "contentFormat": {
+          "type": "string",
+          "enum": ["plain", "markdown"],
+          "description": "Optional format indicator for note content. Defaults to plain when omitted."
         },
         "type": {
           "type": "string",
@@ -88,8 +93,13 @@
       "properties": {
         "content": {
           "type": "string",
-          "maxLength": 500,
-          "description": "The text content of the comment."
+          "maxLength": 1500,
+          "description": "The text or serialized Markdown content of the comment (up to 500 visible characters; max 1500 stored characters)."
+        },
+        "contentFormat": {
+          "type": "string",
+          "enum": ["plain", "markdown"],
+          "description": "Optional format indicator for comment content. Defaults to plain when omitted."
         },
         "authorId": {
           "type": "string",

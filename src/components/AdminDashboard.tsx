@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { AdminCsvImporter } from './AdminCsvImporter';
 import { AdminNotesManager } from './AdminNotesManager';
+import { RichTextViewer } from './RichTextViewer';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -418,9 +419,14 @@ const ReportCard = ({
                 </div>
               </div>
             </div>
-            <p className="text-xs text-stone-800 leading-relaxed bg-white p-3 rounded-lg border border-stone-200 whitespace-pre-wrap break-words max-h-44 overflow-y-auto">
-              {comment ? comment.content : note?.content}
-            </p>
+            <div className="text-xs text-stone-800 leading-relaxed bg-white p-3 rounded-lg border border-stone-200 max-h-44 overflow-y-auto">
+              <RichTextViewer
+                content={comment ? comment.content : (note?.content || '')}
+                contentFormat={comment ? comment.contentFormat : note?.contentFormat}
+                variant={comment ? 'comment' : 'note'}
+                tone="light"
+              />
+            </div>
             {comment && (
               <p className="text-[11px] text-stone-500">
                 Respuesta a nota de {note?.authorName}

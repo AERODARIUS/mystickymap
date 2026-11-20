@@ -37,6 +37,10 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 
 export const MAX_NOTE_LENGTH = 1000;
 export const MAX_COMMENT_LENGTH = 500;
+export const MAX_NOTE_STORAGE_LENGTH = 4000;
+export const MAX_COMMENT_STORAGE_LENGTH = 1500;
+
+export type ContentFormat = 'plain' | 'markdown';
 
 export type NotePrivacy = 'public' | 'unlisted' | 'private';
 
@@ -48,6 +52,7 @@ export interface Comment {
   authorId: string;
   authorName: string;
   content: string;
+  contentFormat?: ContentFormat;
   createdAt: Timestamp;
 }
 
@@ -55,6 +60,7 @@ export interface Note {
   id: string;
   type: 'text' | 'audio';
   content?: string;
+  contentFormat?: ContentFormat;
   audioUrl?: string;
   location: { lat: number; lng: number };
   authorId: string;

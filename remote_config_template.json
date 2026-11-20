@@ -30,10 +30,10 @@
     },
     "max_note_length": {
       "defaultValue": {
-        "value": "500"
+        "value": "1000"
       },
       "valueType": "NUMBER",
-      "description": "The maximum character limit for notes."
+      "description": "The maximum visible character limit for notes."
     },
     "highlight_note_color": {
       "defaultValue": {

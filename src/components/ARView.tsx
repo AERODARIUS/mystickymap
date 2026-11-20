@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Note } from '../types';
 import { calculateBearing, calculateDistance } from '../lib/utils';
 import { SpeechButton } from './SpeechButton';
+import { RichTextViewer } from './RichTextViewer';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { logAnalyticsEvent } from '../firebase';
 
@@ -133,9 +134,15 @@ export const ARView = ({
                           {note.privacy === 'public' && <Globe className="w-2.5 h-2.5" />}
                         </div>
                       </div>
-                      <p className="text-[13px] leading-snug font-medium whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin">
-                        {note.content}
-                      </p>
+                      <div className="text-[13px] leading-snug font-medium max-h-48 overflow-y-auto scrollbar-thin">
+                        <RichTextViewer
+                          content={note.content || ''}
+                          contentFormat={note.contentFormat}
+                          variant="compact"
+                          tone="dark"
+                          stopLinkPropagation
+                        />
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {note.authorId === user?.uid && (
@@ -151,7 +158,7 @@ export const ARView = ({
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <SpeechButton text={note.content || ''} language={note.language} />
+                      <SpeechButton text={note.content || ''} language={note.language} contentFormat={note.contentFormat} />
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();

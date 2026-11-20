@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
 import { SpeechButton } from './SpeechButton';
+import { RichTextViewer } from './RichTextViewer';
+import { markdownToPlainText } from '../lib/richText';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -70,10 +72,10 @@ export const AnchorView = ({
     // Search
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(n => 
-        n.content?.toLowerCase().includes(lowerSearch) || 
-        n.authorName.toLowerCase().includes(lowerSearch)
-      );
+      result = result.filter(n => {
+        const plainText = markdownToPlainText(n.content || '', n.contentFormat).toLowerCase();
+        return plainText.includes(lowerSearch) || n.authorName.toLowerCase().includes(lowerSearch);
+      });
     }
 
     // Sort by distance (default)
@@ -187,7 +189,14 @@ export const AnchorView = ({
                         </div>
                       )}
                       {note.type === 'text' ? (
-                        <p className="whitespace-pre-wrap break-words max-h-60 overflow-y-auto scrollbar-thin">{note.content}</p>
+                        <div className="max-h-60 overflow-y-auto scrollbar-thin">
+                          <RichTextViewer
+                            content={note.content || ''}
+                            contentFormat={note.contentFormat}
+                            variant="note"
+                            tone="light"
+                          />
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 text-stone-500 italic">
                           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -213,6 +222,7 @@ export const AnchorView = ({
                           <SpeechButton 
                             text={note.content || ''} 
                             language={note.language}
+                            contentFormat={note.contentFormat}
                             className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2.5 rounded-full" 
                           />
                           <button 

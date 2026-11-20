@@ -31,7 +31,15 @@ import { useNotes } from './hooks/useNotes';
 import { useAdmin } from './hooks/useAdmin';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useLocation } from './hooks/useLocation';
-import { Note, Comment, NotePrivacy } from './types';
+import {
+  ContentFormat,
+  MAX_NOTE_LENGTH,
+  MAX_NOTE_STORAGE_LENGTH,
+  Note,
+  Comment,
+  NotePrivacy,
+} from './types';
+import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from './lib/richText';
 
 const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
 const API_KEY =
@@ -65,6 +73,7 @@ export default function App() {
   
   // Note draft values preserved across step transitions
   const [draftContent, setDraftContent] = useState('');
+  const [draftContentFormat, setDraftContentFormat] = useState<ContentFormat>('markdown');
   const [draftLanguage, setDraftLanguage] = useState(typeof navigator !== 'undefined' ? navigator.language : 'en-US');
   const [draftPrivacy, setDraftPrivacy] = useState<NotePrivacy>('public');
   const [draftColor, setDraftColor] = useState('#0d9488');
@@ -102,6 +111,7 @@ export default function App() {
     setEditingNote(null);
     setPlacementStep('editing_content');
     setDraftContent('');
+    setDraftContentFormat('markdown');
     setDraftLanguage(typeof navigator !== 'undefined' ? navigator.language : 'en-US');
     setDraftPrivacy('public');
     setDraftColor('#10b981');
@@ -120,6 +130,7 @@ export default function App() {
     if (note) {
       setPlacementStep('editing_content');
       setDraftContent(note.content || '');
+      setDraftContentFormat(note.contentFormat || 'plain');
       setDraftLanguage(note.language || (typeof navigator !== 'undefined' ? navigator.language : 'en-US'));
       setDraftPrivacy(note.privacy || 'public');
       setDraftColor(note.color || '#10b981');
@@ -137,24 +148,44 @@ export default function App() {
   }, []);
 
   const handleProceedToPlacement = useCallback(() => {
-    if (!draftContent.trim()) return;
+    const visibleLength = countVisibleCharacters(
+      markdownToPlainText(draftContent, draftContentFormat)
+    );
+    const validation = validateContentLimits(
+      visibleLength,
+      draftContent,
+      MAX_NOTE_LENGTH,
+      MAX_NOTE_STORAGE_LENGTH
+    );
+    if (!validation.valid) return;
     setPlacementStep('placing_location');
     setView('map');
     logAnalyticsEvent('note_placement_start', { privacy: draftPrivacy });
-  }, [draftContent, draftPrivacy]);
+  }, [draftContent, draftContentFormat, draftPrivacy]);
 
   const handleReturnToEditor = useCallback(() => {
     setPlacementStep('editing_content');
   }, []);
 
   const handleConfirmPlacement = useCallback(async () => {
-    if (!candidateLocation || !auth.currentUser || !draftContent.trim()) return;
+    if (!candidateLocation || !auth.currentUser) return;
+    const visibleLength = countVisibleCharacters(
+      markdownToPlainText(draftContent, draftContentFormat)
+    );
+    const validation = validateContentLimits(
+      visibleLength,
+      draftContent,
+      MAX_NOTE_LENGTH,
+      MAX_NOTE_STORAGE_LENGTH
+    );
+    if (!validation.valid) return;
 
     setIsSubmitting(true);
     try {
       if (editingNote) {
         const updates = {
           content: draftContent.trim(),
+          contentFormat: draftContentFormat,
           privacy: draftPrivacy,
           updatedAt: serverTimestamp(),
           color: draftColor,
@@ -169,6 +200,7 @@ export default function App() {
         const noteData = {
           type: 'text',
           content: draftContent.trim(),
+          contentFormat: draftContentFormat,
           location: candidateLocation,
           authorId: auth.currentUser.uid,
           authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
@@ -189,6 +221,7 @@ export default function App() {
       setCandidateLocation(null);
       setPlacementStep('editing_content');
       setDraftContent('');
+      setDraftContentFormat('markdown');
     } catch (error) {
       handleFirestoreError(
         error, 
@@ -198,7 +231,7 @@ export default function App() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [candidateLocation, editingNote, draftContent, draftPrivacy, draftColor, draftEmoji, draftLanguage]);
+  }, [candidateLocation, editingNote, draftContent, draftContentFormat, draftPrivacy, draftColor, draftEmoji, draftLanguage]);
 
   const handleCancelNoteFlow = useCallback(() => {
     setIsCreating(false);
@@ -207,6 +240,7 @@ export default function App() {
     setCandidateLocation(null);
     setPlacementStep('editing_content');
     setDraftContent('');
+    setDraftContentFormat('markdown');
     logAnalyticsEvent('note_flow_cancel');
   }, []);
 
@@ -444,6 +478,7 @@ export default function App() {
             draftColor={draftColor}
             draftEmoji={draftEmoji}
             draftContent={draftContent}
+            draftContentFormat={draftContentFormat}
             draftLanguage={draftLanguage}
             draftPrivacy={draftPrivacy}
             setView={setView}
@@ -453,6 +488,7 @@ export default function App() {
             setDraftColor={setDraftColor}
             setDraftEmoji={setDraftEmoji}
             setDraftContent={setDraftContent}
+            setDraftContentFormat={setDraftContentFormat}
             setDraftLanguage={setDraftLanguage}
             setDraftPrivacy={setDraftPrivacy}
             onProceedToPlacement={handleProceedToPlacement}
