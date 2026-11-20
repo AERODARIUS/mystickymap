@@ -1,9 +1,18 @@
 import { Timestamp } from 'firebase/firestore';
-import { Note, NotePrivacy } from '../types';
+import {
+  ContentFormat,
+  MAX_NOTE_LENGTH,
+  MAX_NOTE_STORAGE_LENGTH,
+  Note,
+  NotePrivacy,
+} from '../types';
+import { countVisibleCharacters } from './richText';
+import { getContentVisibleText, inspectMarkdownContent } from './tiptapMarkdown';
 
 export type SpotheonImportField =
   | 'id'
   | 'content'
+  | 'contentFormat'
   | 'lat'
   | 'lng'
   | 'location'
@@ -19,13 +28,14 @@ export type SpotheonImportField =
 export type CsvFieldMapping = Record<SpotheonImportField, string>;
 
 export interface ImportDefaults {
+  contentFormat?: ContentFormat;
   type: 'text' | 'audio';
   privacy: NotePrivacy;
   color: string;
   emoji: string;
   language: string;
   authorName: string;
-  maxContentLength: 1000 | 2000;
+  maxContentLength: 1000 | 2000 | 4000;
   skipDuplicates: boolean;
   batchSize: number;
 }
@@ -33,6 +43,7 @@ export interface ImportDefaults {
 export interface ValidatedNotePayload {
   type: 'text' | 'audio';
   content: string;
+  contentFormat: ContentFormat;
   audioUrl?: string;
   location: { lat: number; lng: number };
   authorId: string;
@@ -48,6 +59,10 @@ export interface ValidatedNotePayload {
 export interface PreparedImportRow {
   rowIndex: number; // 1-based data row index
   sourceId?: string;
+  contentFormat: ContentFormat;
+  previewContent: string;
+  visibleLength: number;
+  storageLength: number;
   raw: Record<string, string>;
   status: 'valid' | 'error' | 'duplicate';
   errors: string[];
@@ -68,6 +83,7 @@ export interface ImportManifestItem {
   sourceId: string;
   firestoreNoteId: string;
   batchNumber: number;
+  contentFormat: ContentFormat;
   lat: number;
   lng: number;
   privacy: NotePrivacy;
@@ -82,7 +98,17 @@ export const SPOTHEON_FIELD_DEFS: Array<{
   required?: boolean;
   hint: string;
 }> = [
-  { field: 'content', label: 'content', required: true, hint: 'Texto de la nota (máx. 1000–2000 caracteres)' },
+  {
+    field: 'content',
+    label: 'content',
+    required: true,
+    hint: `Texto o Markdown (máx. ${MAX_NOTE_LENGTH} visibles; hasta ${MAX_NOTE_STORAGE_LENGTH} almacenados)`,
+  },
+  {
+    field: 'contentFormat',
+    label: 'contentFormat',
+    hint: 'plain (por defecto) | markdown',
+  },
   { field: 'lat', label: 'lat', required: true, hint: 'Latitud decimal (-90 a 90), o usar campo location' },
   { field: 'lng', label: 'lng', required: true, hint: 'Longitud decimal (-180 a 180), o usar campo location' },
   { field: 'location', label: 'location (opcional)', hint: 'Par "lat,lng" combinado si no hay lat/lng separados' },
@@ -100,6 +126,7 @@ export const SPOTHEON_FIELD_DEFS: Array<{
 const HEADER_SYNONYMS: Record<SpotheonImportField, string[]> = {
   id: ['id', 'noteid', 'note_id', 'docid', 'doc_id', 'identificador', 'source_id', 'external_id'],
   content: ['content', 'contenido', 'texto', 'text', 'mensaje', 'message', 'descripcion', 'description', 'nota', 'note'],
+  contentFormat: ['contentformat', 'content_format', 'content-format', 'format', 'formato', 'formato_contenido'],
   lat: ['lat', 'latitude', 'latitud', 'location_lat', 'location.lat', 'y'],
   lng: ['lng', 'lon', 'long', 'longitude', 'longitud', 'location_lng', 'location.lng', 'x'],
   location: ['location', 'ubicacion', 'coordenadas', 'coords', 'latlng'],
@@ -206,6 +233,7 @@ export function autoMapHeaders(headers: string[]): CsvFieldMapping {
   const mapping: CsvFieldMapping = {
     id: '',
     content: '',
+    contentFormat: '',
     lat: '',
     lng: '',
     location: '',
@@ -276,8 +304,18 @@ function normalizeColor(rawColor: string): string | null {
   return VALID_HEX_REGEX.test(withHash) ? withHash.toLowerCase() : null;
 }
 
-function makeContentLocationKey(lat: number, lng: number, content: string): string {
-  return `${lat.toFixed(6)},${lng.toFixed(6)}|${content.trim().toLowerCase()}`;
+function makeExactContentLocationKey(
+  lat: number,
+  lng: number,
+  content: string,
+  contentFormat: ContentFormat
+): string {
+  return `${lat.toFixed(6)},${lng.toFixed(6)}|${contentFormat}|${content.trim().toLowerCase()}`;
+}
+
+function makeVisibleContentLocationKey(lat: number, lng: number, visibleText: string): string {
+  const normalizedVisible = visibleText.replace(/\s+/g, ' ').trim().toLowerCase();
+  return `${lat.toFixed(6)},${lng.toFixed(6)}|${normalizedVisible}`;
 }
 
 export function validateAndPrepareNotes(
@@ -294,16 +332,25 @@ export function validateAndPrepareNotes(
   });
 
   const existingIds = new Set(existingNotes.map((n) => n.id));
-  const existingSignatures = new Set(
-    existingNotes
-      .filter((n) => n.location && typeof n.location.lat === 'number' && typeof n.location.lng === 'number' && n.content)
-      .map((n) => makeContentLocationKey(n.location.lat, n.location.lng, n.content || ''))
-  );
+  const existingExactSignatures = new Set<string>();
+  const existingVisibleSignatures = new Set<string>();
+
+  for (const n of existingNotes) {
+    if (n.location && typeof n.location.lat === 'number' && typeof n.location.lng === 'number' && n.content) {
+      const fmt: ContentFormat = n.contentFormat === 'markdown' ? 'markdown' : 'plain';
+      existingExactSignatures.add(makeExactContentLocationKey(n.location.lat, n.location.lng, n.content, fmt));
+      const visText = getContentVisibleText(n.content, fmt, 'note');
+      if (visText.trim()) {
+        existingVisibleSignatures.add(makeVisibleContentLocationKey(n.location.lat, n.location.lng, visText));
+      }
+    }
+  }
 
   const seenCsvIds = new Set<string>();
-  const seenCsvSignatures = new Set<string>();
+  const seenCsvExactSignatures = new Set<string>();
+  const seenCsvVisibleSignatures = new Set<string>();
 
-  const getVal = (row: string[], field: SpotheonImportField): string => {
+  const getTrimmedVal = (row: string[], field: SpotheonImportField): string => {
     const col = mapping[field];
     if (!col) return '';
     const idx = headerIndex.get(col);
@@ -311,18 +358,91 @@ export function validateAndPrepareNotes(
     return (row[idx] ?? '').trim();
   };
 
+  const getRawContentVal = (row: string[], field: SpotheonImportField): string => {
+    const col = mapping[field];
+    if (!col) return '';
+    const idx = headerIndex.get(col);
+    if (idx === undefined) return '';
+    return (row[idx] ?? '').replace(/\r\n?/g, '\n');
+  };
+
+  const defaultFormat: ContentFormat = defaults.contentFormat === 'markdown' ? 'markdown' : 'plain';
+  const configuredStorageLimit = Math.min(
+    Math.max(1000, defaults.maxContentLength || 2000),
+    MAX_NOTE_STORAGE_LENGTH
+  );
+
   const preparedRows: PreparedImportRow[] = rows.map((row, i) => {
     const rowIndex = i + 1;
     const rawObj: Record<string, string> = {};
     headers.forEach((h, idx) => {
-      rawObj[h] = (row[idx] ?? '').trim();
+      const cell = row[idx] ?? '';
+      rawObj[h] = h === mapping.content ? cell.replace(/\r\n?/g, '\n') : cell.trim();
     });
 
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // 1. Optional ID
-    const sourceId = getVal(row, 'id');
+    const sourceId = getTrimmedVal(row, 'id');
+
+    // 2. Content Format (explicitly validated; never inferred from characters)
+    const rawFormat = getTrimmedVal(row, 'contentFormat');
+    const normalizedFormat = rawFormat.toLowerCase();
+    let contentFormat: ContentFormat = defaultFormat;
+    let hasInvalidFormat = false;
+    if (normalizedFormat) {
+      if (normalizedFormat === 'plain' || normalizedFormat === 'markdown') {
+        contentFormat = normalizedFormat;
+      } else {
+        hasInvalidFormat = true;
+        errors.push(`contentFormat inválido "${rawFormat}" (usar plain o markdown).`);
+      }
+    }
+
+    // 3. Content (preserve meaningful whitespace/indentation for Markdown)
+    const rawContent = getRawContentVal(row, 'content');
+    const effectiveFormatForEval: ContentFormat = hasInvalidFormat ? 'plain' : contentFormat;
+    const content = effectiveFormatForEval === 'markdown' ? rawContent : rawContent.trim();
+
+    let visibleLength: number;
+    let storageLength: number;
+    let visibleTextForDup: string;
+
+    if (!rawContent || rawContent.trim().length === 0) {
+      errors.push('El campo content está vacío.');
+      visibleLength = 0;
+      storageLength = 0;
+      visibleTextForDup = '';
+    } else if (effectiveFormatForEval === 'markdown') {
+      const inspection = inspectMarkdownContent(content, 'note');
+      inspection.errors.forEach((err) => errors.push(err));
+      inspection.warnings.forEach((warn) => warnings.push(warn));
+      visibleLength = inspection.visibleLength;
+      storageLength = inspection.serializedLength;
+      visibleTextForDup = inspection.visibleText;
+    } else {
+      visibleLength = countVisibleCharacters(content);
+      storageLength = content.length;
+      visibleTextForDup = content;
+    }
+
+    if (visibleLength > MAX_NOTE_LENGTH) {
+      errors.push(
+        `El texto visible (${visibleLength}) excede el límite máximo de ${MAX_NOTE_LENGTH} caracteres.`
+      );
+    }
+    if (storageLength > MAX_NOTE_STORAGE_LENGTH) {
+      errors.push(
+        `El contenido serializado (${storageLength}) excede el límite máximo de firestore.rules (${MAX_NOTE_STORAGE_LENGTH}).`
+      );
+    } else if (storageLength > configuredStorageLimit) {
+      errors.push(
+        `El contenido serializado (${storageLength}) excede el límite configurado (${configuredStorageLimit}).`
+      );
+    }
+
+    // Stable ID validation & duplicate check
     if (sourceId) {
       if (!VALID_ID_REGEX.test(sourceId)) {
         errors.push('ID inválido (solo letras, números, "_" o "-", máx. 128 caracteres).');
@@ -330,6 +450,10 @@ export function validateAndPrepareNotes(
         return {
           rowIndex,
           sourceId,
+          contentFormat: effectiveFormatForEval,
+          previewContent: content || rawContent,
+          visibleLength,
+          storageLength,
           raw: rawObj,
           status: 'duplicate',
           errors: [],
@@ -339,6 +463,10 @@ export function validateAndPrepareNotes(
         return {
           rowIndex,
           sourceId,
+          contentFormat: effectiveFormatForEval,
+          previewContent: content || rawContent,
+          visibleLength,
+          storageLength,
           raw: rawObj,
           status: 'duplicate',
           errors: [],
@@ -347,24 +475,12 @@ export function validateAndPrepareNotes(
       }
     }
 
-    // 2. Content
-    const content = getVal(row, 'content');
-    if (!content) {
-      errors.push('El campo content está vacío.');
-    } else if (content.length > 2000) {
-      errors.push(`content excede el límite máximo de firestore.rules (${content.length}/2000).`);
-    } else if (content.length > defaults.maxContentLength) {
-      errors.push(`content excede el límite configurado (${content.length}/${defaults.maxContentLength}).`);
-    } else if (content.length > 1000) {
-      warnings.push(`content tiene ${content.length} caracteres (>1000 del blueprint, permitido por reglas hasta 2000).`);
-    }
-
-    // 3. Coordinates
-    let lat = parseCoordinate(getVal(row, 'lat'));
-    let lng = parseCoordinate(getVal(row, 'lng'));
+    // 4. Coordinates
+    let lat = parseCoordinate(getTrimmedVal(row, 'lat'));
+    let lng = parseCoordinate(getTrimmedVal(row, 'lng'));
 
     if ((lat === null || lng === null) && mapping.location) {
-      const locStr = getVal(row, 'location');
+      const locStr = getTrimmedVal(row, 'location');
       if (locStr) {
         const parts = locStr.split(/[,\s;]+/).filter(Boolean);
         if (parts.length >= 2) {
@@ -382,33 +498,62 @@ export function validateAndPrepareNotes(
       if (lat === 0 && lng === 0) errors.push('Coordenadas (0, 0) no válidas.');
     }
 
-    // 4. Duplicate signature check
-    if (defaults.skipDuplicates && lat !== null && lng !== null && content) {
-      const sig = makeContentLocationKey(lat, lng, content);
-      if (existingSignatures.has(sig)) {
-        return {
-          rowIndex,
-          sourceId: sourceId || undefined,
-          raw: rawObj,
-          status: 'duplicate',
-          errors: [],
-          warnings: ['Ya existe una nota con la misma ubicación y contenido en Firestore (omitida).'],
-        };
+    // 5. Duplicate signature check (only auto-skip exact matches when row has no errors)
+    let exactSig = '';
+    let visibleSig = '';
+    if (lat !== null && lng !== null && content && rawContent.trim().length > 0) {
+      exactSig = makeExactContentLocationKey(lat, lng, content, effectiveFormatForEval);
+      if (visibleTextForDup.trim().length > 0) {
+        visibleSig = makeVisibleContentLocationKey(lat, lng, visibleTextForDup);
       }
-      if (seenCsvSignatures.has(sig)) {
-        return {
-          rowIndex,
-          sourceId: sourceId || undefined,
-          raw: rawObj,
-          status: 'duplicate',
-          errors: [],
-          warnings: ['Fila duplicada dentro del CSV (misma ubicación y contenido, omitida).'],
-        };
+
+      if (defaults.skipDuplicates && errors.length === 0) {
+        if (existingExactSignatures.has(exactSig)) {
+          return {
+            rowIndex,
+            sourceId: sourceId || undefined,
+            contentFormat: effectiveFormatForEval,
+            previewContent: content,
+            visibleLength,
+            storageLength,
+            raw: rawObj,
+            status: 'duplicate',
+            errors: [],
+            warnings: ['Ya existe una nota con la misma ubicación, formato y contenido en Firestore (omitida).'],
+          };
+        }
+        if (seenCsvExactSignatures.has(exactSig)) {
+          return {
+            rowIndex,
+            sourceId: sourceId || undefined,
+            contentFormat: effectiveFormatForEval,
+            previewContent: content,
+            visibleLength,
+            storageLength,
+            raw: rawObj,
+            status: 'duplicate',
+            errors: [],
+            warnings: ['Fila duplicada dentro del CSV (misma ubicación, formato y contenido, omitida).'],
+          };
+        }
+      }
+
+      // Ambiguous duplicate check: same location and visible text, but different formatting/syntax
+      if (visibleSig) {
+        if (existingVisibleSignatures.has(visibleSig)) {
+          warnings.push(
+            'Posible duplicado con distinto formato: ya existe una nota en Firestore en esta ubicación con el mismo texto visible (no se descartó automáticamente).'
+          );
+        } else if (seenCsvVisibleSignatures.has(visibleSig)) {
+          warnings.push(
+            'Posible duplicado dentro del CSV con distinto formato en la misma ubicación (no se descartó automáticamente).'
+          );
+        }
       }
     }
 
-    // 5. Type & audioUrl
-    const rawType = getVal(row, 'type').toLowerCase();
+    // 6. Type & audioUrl
+    const rawType = getTrimmedVal(row, 'type').toLowerCase();
     let noteType: 'text' | 'audio' = defaults.type;
     if (rawType) {
       if (rawType === 'text' || rawType === 'audio') {
@@ -418,7 +563,7 @@ export function validateAndPrepareNotes(
       }
     }
 
-    const audioUrl = getVal(row, 'audioUrl');
+    const audioUrl = getTrimmedVal(row, 'audioUrl');
     if (noteType === 'audio') {
       if (!audioUrl || !audioUrl.startsWith('https://') || audioUrl.length > 500) {
         errors.push('audioUrl debe comenzar con "https://" y tener máx. 500 caracteres.');
@@ -427,8 +572,8 @@ export function validateAndPrepareNotes(
       errors.push('audioUrl debe comenzar con "https://" y tener máx. 500 caracteres.');
     }
 
-    // 6. Privacy
-    const rawPrivacy = getVal(row, 'privacy').toLowerCase();
+    // 7. Privacy
+    const rawPrivacy = getTrimmedVal(row, 'privacy').toLowerCase();
     let privacy: NotePrivacy = defaults.privacy;
     if (rawPrivacy) {
       if (rawPrivacy === 'public' || rawPrivacy === 'unlisted' || rawPrivacy === 'private') {
@@ -438,8 +583,8 @@ export function validateAndPrepareNotes(
       }
     }
 
-    // 7. Color
-    const rawColor = getVal(row, 'color');
+    // 8. Color
+    const rawColor = getTrimmedVal(row, 'color');
     let color = defaults.color;
     if (rawColor) {
       const normalized = normalizeColor(rawColor);
@@ -450,29 +595,29 @@ export function validateAndPrepareNotes(
       }
     }
 
-    // 8. Emoji
-    const rawEmoji = getVal(row, 'emoji');
+    // 9. Emoji
+    const rawEmoji = getTrimmedVal(row, 'emoji');
     const emoji = rawEmoji || defaults.emoji;
     if (emoji.length > 10) {
       errors.push(`emoji excede 10 caracteres (${emoji.length}).`);
     }
 
-    // 9. Language
-    const rawLang = getVal(row, 'language');
+    // 10. Language
+    const rawLang = getTrimmedVal(row, 'language');
     const language = rawLang || defaults.language;
     if (language.length > 20) {
       errors.push(`language excede 20 caracteres (${language.length}).`);
     }
 
-    // 10. AuthorName
-    const rawAuthorName = getVal(row, 'authorName');
+    // 11. AuthorName
+    const rawAuthorName = getTrimmedVal(row, 'authorName');
     const authorName = (rawAuthorName || defaults.authorName || 'Admin').slice(0, 100);
     if (rawAuthorName.length > 100) {
       warnings.push('authorName truncado a 100 caracteres según reglas.');
     }
 
-    // 11. UpdatedAt
-    const rawUpdatedAt = getVal(row, 'updatedAt');
+    // 12. UpdatedAt
+    const rawUpdatedAt = getTrimmedVal(row, 'updatedAt');
     let customUpdatedAt: Timestamp | undefined;
     if (rawUpdatedAt) {
       const parsedDate = parseFlexibleDate(rawUpdatedAt);
@@ -487,6 +632,10 @@ export function validateAndPrepareNotes(
       return {
         rowIndex,
         sourceId: sourceId || undefined,
+        contentFormat: effectiveFormatForEval,
+        previewContent: content || rawContent,
+        visibleLength,
+        storageLength,
         raw: rawObj,
         status: 'error',
         errors,
@@ -495,11 +644,13 @@ export function validateAndPrepareNotes(
     }
 
     if (sourceId) seenCsvIds.add(sourceId);
-    seenCsvSignatures.add(makeContentLocationKey(lat, lng, content));
+    if (exactSig) seenCsvExactSignatures.add(exactSig);
+    if (visibleSig) seenCsvVisibleSignatures.add(visibleSig);
 
     const payload: ValidatedNotePayload = {
       type: noteType,
       content,
+      contentFormat,
       ...(audioUrl ? { audioUrl } : {}),
       location: { lat, lng },
       authorId: currentUserUid,
@@ -515,6 +666,10 @@ export function validateAndPrepareNotes(
     return {
       rowIndex,
       sourceId: sourceId || undefined,
+      contentFormat,
+      previewContent: content,
+      visibleLength,
+      storageLength,
       raw: rawObj,
       status: 'valid',
       errors: [],
@@ -539,12 +694,14 @@ export function validateAndPrepareNotes(
 }
 
 export function buildCsvTemplate(): string {
-  const header = 'id,content,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt';
+  const header = 'id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt';
   const row1 =
-    'mvd_accesible_solis,"Teatro Solís — Acceso principal accesible con rampa y ascensor. Fuente: Intendencia de Montevideo — Espacios accesibles de Montevideo (https://catalogodatos.gub.uy/dataset/intendencia-montevideo-espacios-accesibles-de-montevideo1). Datos de origen actualizados: 2026-11-13T12:00:11Z",-34.907851,-56.201122,text,public,#0d9488,🎭,es-ES,Admin,2026-11-13T12:00:11Z';
+    'mvd_accesible_solis,"Teatro Solís — Acceso principal accesible con rampa y ascensor. Fuente: Intendencia de Montevideo (https://catalogodatos.gub.uy/dataset/intendencia-montevideo-espacios-accesibles-de-montevideo1).",plain,-34.907851,-56.201122,text,public,#0d9488,🎭,es-ES,Admin,2026-11-13T12:00:11Z';
   const row2 =
-    'mvd_ejemplo_zitarrosa,"Sala Zitarrosa — Acceso por Av. 18 de Julio 1012. Fuente: Intendencia de Montevideo — Salas públicas de Montevideo (https://catalogodatos.gub.uy/dataset/intendencia-montevideo-salas-publicas-de-montevideo). Datos de origen actualizados: 2026-10-06T16:21:37Z",-34.906123,-56.193456,text,public,#0d9488,🎵,es-ES,Admin,2026-10-06T16:21:37Z';
-  return `${header}\n${row1}\n${row2}\n`;
+    'mvd_markdown_zitarrosa,"## Sala Zitarrosa\n\nAcceso principal por **Av. 18 de Julio 1012**.\n\n- Rampa en entrada principal\n- Baños accesibles",markdown,-34.906123,-56.193456,text,public,#0d9488,🎵,es-ES,Admin,2026-10-06T16:21:37Z';
+  const row3 =
+    'mvd_markdown_rambla,"### Mirador de la Rambla\n\nEspacio abierto frente al Río de la Plata ideal para recorrer al atardecer.\n\n> Recomendado llevar abrigo en días ventosos.\n\n[Información turística de Montevideo](https://montevideo.gub.uy/)",markdown,-34.914521,-56.165214,text,public,#3b82f6,🌊,es-ES,Admin,2026-11-10T15:00:00Z';
+  return `${header}\n${row1}\n${row2}\n${row3}\n`;
 }
 
 function escapeCsvCell(value: string): string {
@@ -555,13 +712,14 @@ function escapeCsvCell(value: string): string {
 }
 
 export function buildManifestCsv(items: ImportManifestItem[]): string {
-  const header = 'rowIndex,sourceId,firestoreNoteId,batchNumber,lat,lng,privacy,updatedAtIso,status,error';
+  const header = 'rowIndex,sourceId,firestoreNoteId,batchNumber,contentFormat,lat,lng,privacy,updatedAtIso,status,error';
   const lines = items.map((item) =>
     [
       String(item.rowIndex),
       escapeCsvCell(item.sourceId),
       escapeCsvCell(item.firestoreNoteId),
       String(item.batchNumber),
+      escapeCsvCell(item.contentFormat || 'plain'),
       String(item.lat),
       String(item.lng),
       escapeCsvCell(item.privacy),

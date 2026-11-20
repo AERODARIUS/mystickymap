@@ -117,6 +117,7 @@ service cloud.firestore {
       );
       
       allow create: if isVerifiedUser() && 
+                       isValidId(noteId) &&
                        isValidNote(incoming()) && 
                        incoming().createdAt == request.time &&
                        (!('moderationState' in incoming()) || incoming().moderationState == 'visible');
@@ -148,6 +149,7 @@ service cloud.firestore {
         allow list: if canInteractWithNote();
         
         allow create: if isVerifiedUser() && 
+                         isValidId(commentId) &&
                          isValidComment(incoming(), noteId) &&
                          incoming().createdAt == request.time &&
                          canInteractWithNote();

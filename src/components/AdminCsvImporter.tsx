@@ -11,7 +11,14 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { db, logAnalyticsEvent } from '../firebase';
-import { Note, NotePrivacy, SUPPORTED_LANGUAGES } from '../types';
+import {
+  ContentFormat,
+  MAX_NOTE_LENGTH,
+  MAX_NOTE_STORAGE_LENGTH,
+  Note,
+  NotePrivacy,
+  SUPPORTED_LANGUAGES,
+} from '../types';
 import {
   SPOTHEON_FIELD_DEFS,
   CsvFieldMapping,
@@ -24,6 +31,7 @@ import {
   parseCsv,
   validateAndPrepareNotes,
 } from '../lib/csv';
+import { RichTextViewer } from './RichTextViewer';
 
 interface AdminCsvImporterProps {
   user: User | null;
@@ -48,6 +56,7 @@ export const AdminCsvImporter = ({
   const [mapping, setMapping] = useState<CsvFieldMapping>({
     id: '',
     content: '',
+    contentFormat: '',
     lat: '',
     lng: '',
     location: '',
@@ -62,6 +71,7 @@ export const AdminCsvImporter = ({
   });
 
   const [defaults, setDefaults] = useState<ImportDefaults>({
+    contentFormat: 'plain',
     type: 'text',
     privacy: 'public',
     color: '#0d9488',
@@ -74,6 +84,7 @@ export const AdminCsvImporter = ({
   });
 
   const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all');
+  const [previewMode, setPreviewMode] = useState<'rendered' | 'raw'>('rendered');
   const [isImporting, setIsImporting] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{
     currentBatch: number;
@@ -232,6 +243,7 @@ export const AdminCsvImporter = ({
           rowIndex: number;
           sourceId: string;
           firestoreNoteId: string;
+          contentFormat: ContentFormat;
           lat: number;
           lng: number;
           privacy: NotePrivacy;
@@ -257,6 +269,7 @@ export const AdminCsvImporter = ({
             rowIndex: row.rowIndex,
             sourceId: row.sourceId || '',
             firestoreNoteId: docRef.id,
+            contentFormat: payload.contentFormat,
             lat: payload.location.lat,
             lng: payload.location.lng,
             privacy: payload.privacy,
@@ -430,12 +443,22 @@ export const AdminCsvImporter = ({
             <textarea
               value={rawCsvText}
               onChange={(e) => loadCsvContent(e.target.value, 'csv-pegado.csv')}
-              placeholder="id,content,lat,lng,privacy,color,emoji,language,authorName,updatedAt"
+              placeholder="id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt"
               rows={6}
               className="w-full p-3 font-mono text-xs bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
             />
           </div>
         )}
+
+        <div className="px-4 py-3 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-600 space-y-1">
+          <p className="font-semibold text-stone-800">
+            Formato enriquecido opcional (<span className="font-mono">contentFormat</span>)
+          </p>
+          <p>
+            Usá <span className="font-mono font-semibold">plain</span> (por defecto) para texto literal o{' '}
+            <span className="font-mono font-semibold">markdown</span> para negrita (<span className="font-mono">**texto**</span>), cursiva (<span className="font-mono">*texto*</span>), encabezados (<span className="font-mono">##</span> / <span className="font-mono">###</span>), listas, citas (<span className="font-mono">&gt;</span>) y enlaces seguros (<span className="font-mono">http/https/mailto</span>). No se permite HTML sin procesar ni imágenes embebidas. Límites: máx. {MAX_NOTE_LENGTH} caracteres visibles y hasta {MAX_NOTE_STORAGE_LENGTH} almacenados.
+          </p>
+        </div>
       </div>
 
       {/* Section 2: Mapping & Defaults */}
@@ -503,6 +526,23 @@ export const AdminCsvImporter = ({
 
           {/* Defaults & Batch Controls */}
           <div className="border-t border-stone-100 pt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <label htmlFor="def-format" className="block text-xs font-semibold text-stone-700">
+                contentFormat por defecto
+              </label>
+              <select
+                id="def-format"
+                value={defaults.contentFormat || 'plain'}
+                onChange={(e) =>
+                  setDefaults((d) => ({ ...d, contentFormat: e.target.value as ContentFormat }))
+                }
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs text-stone-800"
+              >
+                <option value="plain">plain (texto literal)</option>
+                <option value="markdown">markdown (texto enriquecido)</option>
+              </select>
+            </div>
+
             <div className="space-y-1">
               <label htmlFor="def-author" className="block text-xs font-semibold text-stone-700">
                 authorName por defecto
@@ -601,7 +641,7 @@ export const AdminCsvImporter = ({
 
             <div className="space-y-1">
               <label htmlFor="def-max-len" className="block text-xs font-semibold text-stone-700">
-                Límite de content
+                Límite almacenado (máx. {MAX_NOTE_LENGTH} visibles)
               </label>
               <select
                 id="def-max-len"
@@ -609,17 +649,18 @@ export const AdminCsvImporter = ({
                 onChange={(e) =>
                   setDefaults((d) => ({
                     ...d,
-                    maxContentLength: Number(e.target.value) as 1000 | 2000,
+                    maxContentLength: Number(e.target.value) as 1000 | 2000 | 4000,
                   }))
                 }
                 className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs text-stone-800"
               >
-                <option value={2000}>2000 caracteres (máx. firestore.rules)</option>
-                <option value={1000}>1000 caracteres (estricto blueprint)</option>
+                <option value={2000}>2000 caracteres almacenados (estándar CSV)</option>
+                <option value={1000}>1000 caracteres almacenados (estricto)</option>
+                <option value={4000}>{MAX_NOTE_STORAGE_LENGTH} caracteres almacenados (máx. firestore.rules)</option>
               </select>
             </div>
 
-            <div className="sm:col-span-2 flex items-end pb-1">
+            <div className="sm:col-span-2 lg:col-span-4 flex items-end pt-1">
               <label className="flex items-center gap-2.5 text-xs font-medium text-stone-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -627,7 +668,7 @@ export const AdminCsvImporter = ({
                   onChange={(e) => setDefaults((d) => ({ ...d, skipDuplicates: e.target.checked }))}
                   className="w-4 h-4 accent-[#0d9488] rounded"
                 />
-                Omitir duplicados por ID o por coincidencia exacta de ubicación y texto (no sobrescribir existentes)
+                Omitir duplicados exactos por ID o por coincidencia de ubicación, formato y texto (los posibles duplicados con distinto formato muestran advertencia sin descartarse)
               </label>
             </div>
           </div>
@@ -671,30 +712,63 @@ export const AdminCsvImporter = ({
             </div>
           </div>
 
-          {/* Filter & Execute Action */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-1 p-1 bg-stone-100 rounded-lg w-fit">
-              {(
-                [
-                  { id: 'all', label: `Todas (${prepared.rows.length})` },
-                  { id: 'valid', label: `Válidas (${prepared.validCount})` },
-                  { id: 'error', label: `Errores (${prepared.errorCount})` },
-                  { id: 'duplicate', label: `Duplicadas (${prepared.duplicateCount})` },
-                ] as const
-              ).map((tab) => (
+          {/* Filter, Preview Toggle & Execute Action */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 p-1 bg-stone-100 rounded-lg w-fit">
+                {(
+                  [
+                    { id: 'all', label: `Todas (${prepared.rows.length})` },
+                    { id: 'valid', label: `Válidas (${prepared.validCount})` },
+                    { id: 'error', label: `Errores (${prepared.errorCount})` },
+                    { id: 'duplicate', label: `Duplicadas (${prepared.duplicateCount})` },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setPreviewFilter(tab.id)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                      previewFilter === tab.id
+                        ? 'bg-white text-stone-900 shadow-sm'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                role="group"
+                aria-label="Modo de vista previa de contenido"
+                className="flex items-center gap-1 p-1 bg-stone-100 rounded-lg w-fit"
+              >
                 <button
-                  key={tab.id}
                   type="button"
-                  onClick={() => setPreviewFilter(tab.id)}
+                  aria-pressed={previewMode === 'rendered'}
+                  onClick={() => setPreviewMode('rendered')}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                    previewFilter === tab.id
+                    previewMode === 'rendered'
                       ? 'bg-white text-stone-900 shadow-sm'
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  {tab.label}
+                  Renderizado
                 </button>
-              ))}
+                <button
+                  type="button"
+                  aria-pressed={previewMode === 'raw'}
+                  onClick={() => setPreviewMode('raw')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                    previewMode === 'raw'
+                      ? 'bg-white text-stone-900 shadow-sm'
+                      : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  Markdown sin procesar
+                </button>
+              </div>
             </div>
 
             <button
@@ -777,7 +851,7 @@ export const AdminCsvImporter = ({
                   <th className="py-2.5 px-3 whitespace-nowrap">#</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Estado</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">ID origen</th>
-                  <th className="py-2.5 px-3">Contenido / Detalle</th>
+                  <th className="py-2.5 px-3">Contenido / Formato</th>
                   <th className="py-2.5 px-3 whitespace-nowrap text-right">Coordenadas</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Privacidad</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">updatedAt</th>
@@ -801,15 +875,46 @@ export const AdminCsvImporter = ({
                     <td className="py-2.5 px-3 font-mono text-stone-600 whitespace-nowrap">
                       {row.sourceId || 'auto'}
                     </td>
-                    <td className="py-2.5 px-3 max-w-md">
-                      <p className="text-stone-800 line-clamp-2 break-words">
-                        {row.payload?.content || row.raw[mapping.content] || '—'}
-                      </p>
+                    <td className="py-2.5 px-3 max-w-md space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span
+                          className={`px-1.5 py-0.5 rounded font-mono font-semibold ${
+                            row.contentFormat === 'markdown'
+                              ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                              : 'bg-stone-100 text-stone-700 border border-stone-200'
+                          }`}
+                        >
+                          {row.contentFormat}
+                        </span>
+                        <span className="font-mono tabular-nums text-stone-500">
+                          {row.visibleLength}/{MAX_NOTE_LENGTH} vis. · {row.storageLength} alm.
+                        </span>
+                      </div>
+
+                      {previewMode === 'rendered' && row.contentFormat === 'markdown' ? (
+                        <div className="max-h-40 overflow-y-auto rounded-lg bg-stone-50/80 border border-stone-200/80 px-2.5 py-2 text-xs text-stone-800">
+                          <RichTextViewer
+                            content={row.previewContent}
+                            contentFormat="markdown"
+                            variant="compact"
+                            tone="light"
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className={`max-h-40 overflow-y-auto rounded-lg border border-stone-200/80 px-2.5 py-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-stone-800 ${
+                            previewMode === 'raw' ? 'bg-stone-100/80 font-mono text-[11px]' : 'bg-stone-50/60 text-xs'
+                          }`}
+                        >
+                          {row.previewContent || row.raw[mapping.content] || '—'}
+                        </div>
+                      )}
+
                       {row.errors.length > 0 && (
-                        <p className="text-red-700 mt-1">{row.errors.join(' ')}</p>
+                        <p className="text-red-700 font-medium">{row.errors.join(' ')}</p>
                       )}
                       {row.warnings.length > 0 && (
-                        <p className="text-amber-700 mt-1">{row.warnings.join(' ')}</p>
+                        <p className="text-amber-700 font-medium">{row.warnings.join(' ')}</p>
                       )}
                     </td>
                     <td className="py-2.5 px-3 font-mono tabular-nums text-right text-stone-700 whitespace-nowrap">

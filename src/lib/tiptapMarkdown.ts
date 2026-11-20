@@ -1,4 +1,5 @@
-import { Extension, type JSONContent, type AnyExtension } from '@tiptap/react';
+import { Extension, getSchema, type JSONContent, type AnyExtension } from '@tiptap/react';
+import { Node as PMNode, type Schema } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown, MarkdownManager } from '@tiptap/markdown';
@@ -359,12 +360,34 @@ export function sanitizeTiptapDoc(doc: JSONContent, mode: EditorMode): JSONConte
 }
 
 let cachedNoteMarkdownManager: MarkdownManager | null = null;
+let cachedCommentMarkdownManager: MarkdownManager | null = null;
+let cachedNoteSchema: Schema | null = null;
+let cachedCommentSchema: Schema | null = null;
 
-function getNoteParserManager(): MarkdownManager {
+function getParserManager(mode: EditorMode): MarkdownManager {
+  if (mode === 'comment') {
+    if (!cachedCommentMarkdownManager) {
+      cachedCommentMarkdownManager = createMarkdownManager('comment');
+    }
+    return cachedCommentMarkdownManager;
+  }
   if (!cachedNoteMarkdownManager) {
     cachedNoteMarkdownManager = createMarkdownManager('note');
   }
   return cachedNoteMarkdownManager;
+}
+
+export function getRichTextSchema(mode: EditorMode): Schema {
+  if (mode === 'comment') {
+    if (!cachedCommentSchema) {
+      cachedCommentSchema = getSchema(createRichTextExtensions('comment', { includeMarkdownExtension: false }));
+    }
+    return cachedCommentSchema;
+  }
+  if (!cachedNoteSchema) {
+    cachedNoteSchema = getSchema(createRichTextExtensions('note', { includeMarkdownExtension: false }));
+  }
+  return cachedNoteSchema;
 }
 
 /**
@@ -390,9 +413,232 @@ export function parseStoredContentToDoc(
   // disrupt MarkdownManager parsing, then parse with note grammar and normalize
   // to the target editor mode.
   const withoutImages = content.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
-  const parser = mode === 'comment' ? getNoteParserManager() : (manager ?? getNoteParserManager());
+  const parser = mode === 'comment' ? getParserManager('note') : (manager ?? getParserManager('note'));
   const parsed = parser.parse(withoutImages);
   return sanitizeTiptapDoc(parsed, mode);
+}
+
+/**
+ * Extracts user-visible text from stored plain or Markdown content using the
+ * shared Tiptap/ProseMirror schema without requiring a mounted DOM editor.
+ */
+export function getContentVisibleText(
+  content: string,
+  contentFormat: ContentFormat = 'plain',
+  mode: EditorMode = 'note'
+): string {
+  if (!content) return '';
+  const normalized = content.replace(/\r\n?/g, '\n');
+  if (contentFormat !== 'markdown') {
+    return normalized;
+  }
+
+  const docJson = parseStoredContentToDoc(normalized, 'markdown', mode);
+  const pmDoc = PMNode.fromJSON(getRichTextSchema(mode), docJson);
+  return getDocVisibleText(pmDoc);
+}
+
+/**
+ * Measures user-visible grapheme clusters after interpreting supported Markdown
+ * syntax, matching the live Tiptap editor character counter.
+ */
+export function getContentVisibleLength(
+  content: string,
+  contentFormat: ContentFormat = 'plain',
+  mode: EditorMode = 'note'
+): number {
+  return countVisibleCharacters(getContentVisibleText(content, contentFormat, mode));
+}
+
+export interface MarkdownInspectionResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  visibleText: string;
+  visibleLength: number;
+  serializedLength: number;
+}
+
+interface MarkedLikeToken {
+  type?: string;
+  raw?: string;
+  href?: string;
+  depth?: number;
+  tokens?: MarkedLikeToken[];
+  items?: MarkedLikeToken[];
+  header?: Array<{ tokens?: MarkedLikeToken[] }>;
+  rows?: Array<Array<{ tokens?: MarkedLikeToken[] }>>;
+}
+
+function inspectTiptapJsonForUnsafeConstructs(
+  node: JSONContent | undefined,
+  errors: Set<string>
+): void {
+  if (!node) return;
+  if (node.type === 'image') {
+    errors.add('No se permiten imágenes embebidas (![...](...)) en contenido Markdown.');
+  }
+  if (Array.isArray(node.marks)) {
+    for (const mark of node.marks) {
+      if (mark.type === 'link') {
+        const href = typeof mark.attrs?.href === 'string' ? mark.attrs.href : '';
+        if (!sanitizeLinkUrl(href)) {
+          errors.add(
+            'El contenido incluye un enlace con protocolo inseguro o URL inválida. Solo se permiten http://, https:// y mailto:.'
+          );
+        }
+      }
+    }
+  }
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      inspectTiptapJsonForUnsafeConstructs(child, errors);
+    }
+  }
+}
+
+/**
+ * Inspects untrusted Markdown input using Tiptap's MarkdownManager lexer and
+ * ProseMirror schema to reject dangerous constructs (raw HTML, unsafe URLs,
+ * embedded images) and warn on unsupported formatting constructs.
+ */
+export function inspectMarkdownContent(
+  content: string,
+  mode: EditorMode = 'note'
+): MarkdownInspectionResult {
+  const normalized = content.replace(/\r\n?/g, '\n');
+  const serializedLength = normalized.length;
+
+  if (!normalized.trim()) {
+    return {
+      isValid: false,
+      errors: ['El campo content está vacío.'],
+      warnings: [],
+      visibleText: '',
+      visibleLength: 0,
+      serializedLength,
+    };
+  }
+
+  const noteManager = getParserManager('note');
+  const errors = new Set<string>();
+  const unsupportedConstructs = new Set<string>();
+
+  const walkTokens = (tokens: MarkedLikeToken[] | undefined) => {
+    if (!Array.isArray(tokens)) return;
+    for (const token of tokens) {
+      switch (token.type) {
+        case 'html': {
+          errors.add(
+            'No se permite HTML sin procesar en contenido Markdown (ej. <script>, <img> o etiquetas HTML).'
+          );
+          break;
+        }
+        case 'image': {
+          errors.add('No se permiten imágenes embebidas (![...](...)) en contenido Markdown.');
+          break;
+        }
+        case 'link': {
+          const href = typeof token.href === 'string' ? token.href : '';
+          if (!sanitizeLinkUrl(href)) {
+            errors.add(
+              'El contenido incluye un enlace con protocolo inseguro o URL inválida. Solo se permiten http://, https:// y mailto:.'
+            );
+          }
+          break;
+        }
+        case 'heading': {
+          const depth = Number(token.depth || 0);
+          if (mode === 'comment' || (depth !== 2 && depth !== 3)) {
+            unsupportedConstructs.add(
+              mode === 'comment' ? 'encabezados' : `encabezados H${depth || '?'}`
+            );
+          }
+          break;
+        }
+        case 'code':
+        case 'codespan': {
+          unsupportedConstructs.add('código');
+          break;
+        }
+        case 'hr': {
+          unsupportedConstructs.add('separadores (---)');
+          break;
+        }
+        case 'del': {
+          unsupportedConstructs.add('tachado (~~)');
+          break;
+        }
+        case 'table': {
+          unsupportedConstructs.add('tablas');
+          break;
+        }
+        case 'blockquote': {
+          if (mode === 'comment') unsupportedConstructs.add('citas');
+          break;
+        }
+        case 'list': {
+          if (mode === 'comment') unsupportedConstructs.add('listas');
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (Array.isArray(token.tokens)) {
+        walkTokens(token.tokens);
+      }
+      if (Array.isArray(token.items)) {
+        walkTokens(token.items);
+      }
+      if (Array.isArray(token.header)) {
+        for (const cell of token.header) {
+          walkTokens(cell.tokens);
+        }
+      }
+      if (Array.isArray(token.rows)) {
+        for (const row of token.rows) {
+          for (const cell of row) {
+            walkTokens(cell.tokens);
+          }
+        }
+      }
+    }
+  };
+
+  if (noteManager.instance && typeof noteManager.instance.lexer === 'function') {
+    const tokens = noteManager.instance.lexer(normalized) as MarkedLikeToken[];
+    walkTokens(tokens);
+  }
+
+  // Second defense-in-depth check on Tiptap's parsed AST prior to sanitization
+  const rawParsed = noteManager.parse(normalized);
+  inspectTiptapJsonForUnsafeConstructs(rawParsed, errors);
+
+  const sanitizedDoc = parseStoredContentToDoc(normalized, 'markdown', mode, noteManager);
+  const pmDoc = PMNode.fromJSON(getRichTextSchema(mode), sanitizedDoc);
+  const visibleText = getDocVisibleText(pmDoc);
+  const visibleLength = countVisibleCharacters(visibleText);
+
+  if (errors.size === 0 && visibleLength === 0) {
+    errors.add('El contenido Markdown no produce texto visible válido tras su validación.');
+  }
+
+  const warnings: string[] = [];
+  if (unsupportedConstructs.size > 0) {
+    warnings.push(
+      `Formato Markdown no soportado en el editor (${Array.from(unsupportedConstructs).join(', ')}): se normalizará al editar.`
+    );
+  }
+
+  return {
+    isValid: errors.size === 0,
+    errors: Array.from(errors),
+    warnings,
+    visibleText,
+    visibleLength,
+    serializedLength,
+  };
 }
 
 /**
