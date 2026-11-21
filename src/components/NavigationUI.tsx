@@ -24,6 +24,8 @@ interface NavigationUIProps {
   draftContentFormat: ContentFormat;
   draftLanguage: string;
   draftPrivacy: NotePrivacy;
+  draftHasExpiration?: boolean;
+  draftExpirationDate?: string;
   setView: (view: 'map' | 'ar' | 'anchor' | 'qr') => void;
   setIsTrackingLocation: (tracking: boolean) => void;
   onStartCreate: () => void;
@@ -34,6 +36,8 @@ interface NavigationUIProps {
   setDraftContentFormat: (format: ContentFormat) => void;
   setDraftLanguage: (lang: string) => void;
   setDraftPrivacy: (privacy: NotePrivacy) => void;
+  setDraftHasExpiration?: (hasExpiration: boolean) => void;
+  setDraftExpirationDate?: (date: string) => void;
   onProceedToPlacement: () => void;
   handleLogin: () => void;
   handleLogout: () => void;
@@ -58,6 +62,8 @@ export const NavigationUI = ({
   draftContentFormat,
   draftLanguage,
   draftPrivacy,
+  draftHasExpiration,
+  draftExpirationDate,
   setView,
   setIsTrackingLocation,
   onStartCreate,
@@ -68,6 +74,8 @@ export const NavigationUI = ({
   setDraftContentFormat,
   setDraftLanguage,
   setDraftPrivacy,
+  setDraftHasExpiration,
+  setDraftExpirationDate,
   onProceedToPlacement,
   handleLogin,
   handleLogout,
@@ -289,6 +297,10 @@ export const NavigationUI = ({
                   setLanguage={setDraftLanguage}
                   privacy={draftPrivacy}
                   setPrivacy={setDraftPrivacy}
+                  hasExpiration={draftHasExpiration}
+                  setHasExpiration={setDraftHasExpiration}
+                  expirationDate={draftExpirationDate}
+                  setExpirationDate={setDraftExpirationDate}
                   onProceedToPlacement={onProceedToPlacement}
                 />
               </Suspense>

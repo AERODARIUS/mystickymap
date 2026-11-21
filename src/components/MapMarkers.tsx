@@ -2,10 +2,11 @@ import React from 'react';
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Languages, Pencil, Trash2, Check, Share2, FileText, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle, Calendar } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { formatExpirationDate } from '../lib/expiration';
 import { SpeechButton } from './SpeechButton';
 import { RichTextViewer } from './RichTextViewer';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -53,7 +54,7 @@ export const MapMarkers = ({
   onShowComments,
   onReportNote
 }: MapMarkersProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { flags } = useFeatureFlags();
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -173,12 +174,20 @@ export const MapMarkers = ({
                 stopLinkPropagation
               />
             </div>
-            <div className="flex items-center justify-between mt-3 pt-2 border-t border-stone-100/50">
-              <p className="text-[10px] text-stone-400">
-                {selectedNote.createdAt.toDate().toLocaleDateString()}
-              </p>
+            <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-stone-100/50">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-stone-400">
+                  {selectedNote.createdAt?.toDate ? selectedNote.createdAt.toDate().toLocaleDateString() : '—'}
+                </p>
+                {selectedNote.expiresAt && (
+                  <p className="text-[10px] text-stone-500 font-medium flex items-center gap-1">
+                    <Calendar className="w-2.5 h-2.5" />
+                    <span>{t('expiration.visible_until_short', 'Visible hasta')} {formatExpirationDate(selectedNote.expiresAt, i18n.language)}</span>
+                  </p>
+                )}
+              </div>
               {selectedNote.language && (
-                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded text-[9px] font-bold text-stone-500 uppercase tracking-wider">
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded text-[9px] font-bold text-stone-500 uppercase tracking-wider shrink-0">
                   <Languages className="w-2.5 h-2.5" />
                   {SUPPORTED_LANGUAGES.find(l => l.code === selectedNote.language)?.label || selectedNote.language}
                 </div>

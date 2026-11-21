@@ -467,7 +467,7 @@ describe('Firestore security rules verification (static invariants)', () => {
     expect(rules).toContain('data.content.size() >= 1 && data.content.size() <= 1500');
     expect(rules).toContain("'contentFormat'");
     expect(rules).toContain(
-      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])"
+      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy', 'expiresAt'])"
     );
     expect(rules).toContain("data.keys().hasOnly(['content', 'contentFormat', 'authorId', 'authorName', 'createdAt', 'noteId'])");
   });

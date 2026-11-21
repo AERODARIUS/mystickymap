@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send, Trash2, MessageSquare, Clock, AlertTriangle } from 'lucide-react';
+import { X, Send, Trash2, MessageSquare, Clock, AlertTriangle, Calendar, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { User } from 'firebase/auth';
 import {
@@ -14,6 +14,7 @@ import { useComments } from '../hooks/useComments';
 import { RichTextViewer } from './RichTextViewer';
 import type { RichTextEditorChangeMeta, RichTextEditorHandle } from './RichTextEditor';
 import { validateContentLimits } from '../lib/richText';
+import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
 
 const LazyRichTextEditor = lazy(() => import('./RichTextEditor'));
 
@@ -22,12 +23,13 @@ interface CommentsViewProps {
   isOpen: boolean;
   user: User | null;
   onClose: () => void;
+  onEditNote?: (note: Note) => void;
   onReportComment: (comment: Comment) => void;
   onReportNote: (note: Note) => void;
 }
 
-export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onReportNote }: CommentsViewProps) => {
-  const { t } = useTranslation();
+export const CommentsView = ({ note, isOpen, user, onClose, onEditNote, onReportComment, onReportNote }: CommentsViewProps) => {
+  const { t, i18n } = useTranslation();
   const { flags } = useFeatureFlags();
   const [commentMarkdown, setCommentMarkdown] = useState('');
   const [visibleLength, setVisibleLength] = useState(0);
@@ -122,24 +124,55 @@ export const CommentsView = ({ note, isOpen, user, onClose, onReportComment, onR
             </div>
 
             {/* Note Context */}
-            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-4 shrink-0">
-              <div className="text-sm text-stone-600 flex-1 max-h-36 overflow-y-auto scrollbar-thin min-w-0">
-                <RichTextViewer
-                  content={note.content || ''}
-                  contentFormat={note.contentFormat}
-                  variant="compact"
-                  tone="light"
-                />
-              </div>
-              {flags.enableModeration && (
-                <button
-                  onClick={() => onReportNote(note)}
-                  className="p-2 text-stone-600 hover:text-amber-500 transition-colors shrink-0"
-                  title="Report Note"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                </button>
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 space-y-2 shrink-0">
+              {(isNoteExpired(note) || note.expiresAt) && (
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    {isNoteExpired(note) && (
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+                        {t('expiration.expired_badge', 'Vencida')}
+                      </span>
+                    )}
+                    {note.expiresAt && (
+                      <span className="text-[11px] text-stone-500 font-medium flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {isNoteExpired(note)
+                          ? `${t('expiration.expired_on', 'Venció el')} ${formatExpirationDate(note.expiresAt, i18n.language)}`
+                          : `${t('expiration.visible_until_short', 'Visible hasta')} ${formatExpirationDate(note.expiresAt, i18n.language)}`}
+                      </span>
+                    )}
+                  </div>
+                  {user && note.authorId === user.uid && onEditNote && (
+                    <button
+                      type="button"
+                      onClick={() => onEditNote(note)}
+                      className="px-2.5 py-1 rounded-lg bg-[#081e2b] text-white hover:bg-[#0e2a38] text-[11px] font-bold flex items-center gap-1 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3 text-[#00a88f]" />
+                      <span>{isNoteExpired(note) ? t('anchor.renew_note', 'Renovar') : t('anchor.edit_note')}</span>
+                    </button>
+                  )}
+                </div>
               )}
+              <div className="flex items-center justify-between gap-4">
+                <div className="text-sm text-stone-600 flex-1 max-h-36 overflow-y-auto scrollbar-thin min-w-0">
+                  <RichTextViewer
+                    content={note.content || ''}
+                    contentFormat={note.contentFormat}
+                    variant="compact"
+                    tone="light"
+                  />
+                </div>
+                {flags.enableModeration && (
+                  <button
+                    onClick={() => onReportNote(note)}
+                    className="p-2 text-stone-600 hover:text-amber-500 transition-colors shrink-0"
+                    title="Report Note"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Comments List */}

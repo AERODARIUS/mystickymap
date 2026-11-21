@@ -432,7 +432,7 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
     expect(res.rows[1].payload?.contentFormat).toBe('markdown');
     expect(res.rows[2].payload?.contentFormat).toBe('markdown');
 
-    // Verify Firestore document keys satisfy isValidNote() allowlist & count <= 14
+    // Verify Firestore document keys satisfy isValidNote() allowlist & count <= 15
     const allowedFirestoreKeys = new Set([
       'type',
       'location',
@@ -448,15 +448,17 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
       'emoji',
       'language',
       'moderationState',
+      'expiresAt',
     ]);
     for (const row of res.rows) {
       const { customUpdatedAt, ...rest } = row.payload!;
+      expect(row.payload?.expiresAt).toBeNull();
       const docKeys = Object.keys({
         ...rest,
         createdAt: 'serverTimestamp',
         updatedAt: customUpdatedAt ?? 'serverTimestamp',
       });
-      expect(docKeys.length).toBeLessThanOrEqual(14);
+      expect(docKeys.length).toBeLessThanOrEqual(15);
       docKeys.forEach((k) => expect(allowedFirestoreKeys.has(k)).toBe(true));
     }
 
@@ -478,14 +480,14 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
     expect(manifestCsv).toContain('markdown');
   });
 
-  it('enforces Firestore security rule constraints for notes and contentFormat', () => {
+  it('enforces Firestore security rule constraints for notes, contentFormat, and expiresAt', () => {
     const rules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
     expect(rules).toContain("isValidId(noteId)");
     expect(rules).toContain("data.contentFormat in ['plain', 'markdown']");
-    expect(rules).toContain("data.keys().size() <= 14");
+    expect(rules).toContain("data.keys().size() <= 15");
     expect(rules).toContain("data.content.size() <= 4000");
     expect(rules).toContain(
-      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])"
+      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy', 'expiresAt'])"
     );
   });
 });

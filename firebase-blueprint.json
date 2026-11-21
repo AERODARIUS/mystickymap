@@ -71,6 +71,11 @@
           "type": "string",
           "enum": ["visible", "pending_review", "removed"],
           "description": "The current moderation status of the note. Defaults to visible."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional UTC expiration timestamp. Null or omitted means the note never expires."
         }
       },
       "required": ["type", "location", "authorId", "createdAt"]

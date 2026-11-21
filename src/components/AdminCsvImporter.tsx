@@ -68,6 +68,7 @@ export const AdminCsvImporter = ({
     language: '',
     authorName: '',
     updatedAt: '',
+    expiresAt: '',
   });
 
   const [defaults, setDefaults] = useState<ImportDefaults>({

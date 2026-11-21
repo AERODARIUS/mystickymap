@@ -10,7 +10,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "eslint . && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate:expires-at": "tsx scripts/migrations/001_add_notes_expires_at.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

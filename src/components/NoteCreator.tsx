@@ -1,9 +1,9 @@
 import React, { Suspense, lazy, useState, useRef, useCallback } from 'react';
-import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock } from 'lucide-react';
+import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock, Calendar, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from '../firebase';
-import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import {
   ContentFormat,
   MAX_NOTE_LENGTH,
@@ -16,6 +16,12 @@ import { SpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent,
 import * as Tooltip from '@radix-ui/react-tooltip';
 import type { RichTextEditorChangeMeta, RichTextEditorHandle } from './RichTextEditor';
 import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from '../lib/richText';
+import {
+  getTodayCalendarDate,
+  isNoteExpired,
+  timestampToCalendarDate,
+  validateExpirationDateInput,
+} from '../lib/expiration';
 
 const LazyRichTextEditor = lazy(() => import('./RichTextEditor'));
 
@@ -39,6 +45,10 @@ export const NoteCreator = ({
   setLanguage: propSetLanguage,
   privacy: propPrivacy,
   setPrivacy: propSetPrivacy,
+  hasExpiration: propHasExpiration,
+  setHasExpiration: propSetHasExpiration,
+  expirationDate: propExpirationDate,
+  setExpirationDate: propSetExpirationDate,
   onProceedToPlacement
 }: {
   draftLocation: { lat: number, lng: number } | null,
@@ -56,6 +66,10 @@ export const NoteCreator = ({
   setLanguage?: (lang: string) => void,
   privacy?: NotePrivacy,
   setPrivacy?: (privacy: NotePrivacy) => void,
+  hasExpiration?: boolean,
+  setHasExpiration?: (hasExpiration: boolean) => void,
+  expirationDate?: string,
+  setExpirationDate?: (date: string) => void,
   onProceedToPlacement?: () => void
 }) => {
   const { t } = useTranslation();
@@ -66,6 +80,13 @@ export const NoteCreator = ({
   );
   const [localLanguage, setLocalLanguage] = useState(editingNote?.language || navigator.language || 'en-US');
   const [localPrivacy, setLocalPrivacy] = useState<NotePrivacy>(editingNote?.privacy || 'public');
+  const [localHasExpiration, setLocalHasExpiration] = useState<boolean>(
+    () => editingNote?.expiresAt !== null && editingNote?.expiresAt !== undefined
+  );
+  const [localExpirationDate, setLocalExpirationDate] = useState<string>(
+    () => (editingNote?.expiresAt ? timestampToCalendarDate(editingNote.expiresAt) : '')
+  );
+  const [expirationTouched, setExpirationTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const content = propContent !== undefined ? propContent : localContent;
@@ -97,6 +118,18 @@ export const NoteCreator = ({
   const setPrivacy = (val: NotePrivacy) => {
     if (propSetPrivacy) propSetPrivacy(val);
     else setLocalPrivacy(val);
+  };
+
+  const hasExpiration = propHasExpiration !== undefined ? propHasExpiration : localHasExpiration;
+  const setHasExpiration = (val: boolean) => {
+    if (propSetHasExpiration) propSetHasExpiration(val);
+    else setLocalHasExpiration(val);
+  };
+
+  const expirationDate = propExpirationDate !== undefined ? propExpirationDate : localExpirationDate;
+  const setExpirationDate = (val: string) => {
+    if (propSetExpirationDate) propSetExpirationDate(val);
+    else setLocalExpirationDate(val);
   };
 
   const maxNoteLength = flags.maxNoteLength >= MAX_NOTE_LENGTH ? flags.maxNoteLength : MAX_NOTE_LENGTH;
@@ -239,9 +272,21 @@ export const NoteCreator = ({
     MAX_NOTE_STORAGE_LENGTH
   );
 
+  const todayCalendarDate = getTodayCalendarDate();
+  const expirationValidation = validateExpirationDateInput(hasExpiration, expirationDate);
+  const isEditingExpiredNote = Boolean(editingNote && isNoteExpired(editingNote));
+  const showExpirationError =
+    hasExpiration &&
+    !expirationValidation.valid &&
+    (expirationTouched || expirationDate.trim().length > 0 || isEditingExpiredNote);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validation.valid) return;
+    if (!expirationValidation.valid) {
+      setExpirationTouched(true);
+      return;
+    }
 
     if (onProceedToPlacement) {
       onProceedToPlacement();
@@ -249,6 +294,10 @@ export const NoteCreator = ({
     }
 
     if (!draftLocation || !auth.currentUser) return;
+
+    const expiresAtValue = expirationValidation.expiresAtDate
+      ? Timestamp.fromDate(expirationValidation.expiresAtDate)
+      : null;
 
     setIsSubmitting(true);
     try {
@@ -258,6 +307,7 @@ export const NoteCreator = ({
           contentFormat,
           privacy,
           updatedAt: serverTimestamp(),
+          expiresAt: expiresAtValue,
           color,
           emoji,
           language,
@@ -276,6 +326,7 @@ export const NoteCreator = ({
           privacy,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          expiresAt: expiresAtValue,
           color,
           emoji,
           language
@@ -536,11 +587,93 @@ export const NoteCreator = ({
             {getPrivacyConfig(privacy).icon}
             {getPrivacyConfig(privacy).desc}
           </p>
+
+          {/* Row 3: Optional Expiration */}
+          <div className="px-1 pt-2 border-t border-stone-100 space-y-2.5">
+            {isEditingExpiredNote && (
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <span className="inline-block px-1.5 py-0.5 mr-1.5 rounded bg-amber-200/80 text-amber-900 text-[10px] font-bold uppercase tracking-wide">
+                    {t('expiration.expired_badge', 'Vencida')}
+                  </span>
+                  <span>{t('creator.expired_edit_notice', 'Esta nota está vencida y oculta al público. Elige una nueva fecha futura o desactiva la expiración para volver a publicarla.')}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <label
+                htmlFor="note-expiration-toggle"
+                className="flex items-center gap-2.5 text-xs font-bold text-stone-700 cursor-pointer select-none"
+              >
+                <input
+                  id="note-expiration-toggle"
+                  type="checkbox"
+                  checked={hasExpiration}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setHasExpiration(checked);
+                    setExpirationTouched(false);
+                    if (!checked) {
+                      setExpirationDate('');
+                    }
+                  }}
+                  className="w-4 h-4 accent-[#0d9488] rounded cursor-pointer"
+                />
+                <Calendar className="w-3.5 h-3.5 text-stone-500" />
+                <span>{t('creator.enable_expiration', 'Establecer fecha de expiración')}</span>
+              </label>
+            </div>
+
+            {hasExpiration && (
+              <div className="pl-6 space-y-1.5">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label
+                    htmlFor="note-expiration-date"
+                    className="text-xs font-semibold text-stone-600 whitespace-nowrap"
+                  >
+                    {t('creator.visible_until', 'Visible hasta')}
+                  </label>
+                  <input
+                    id="note-expiration-date"
+                    type="date"
+                    min={todayCalendarDate}
+                    value={expirationDate}
+                    onChange={(e) => {
+                      setExpirationDate(e.target.value);
+                      setExpirationTouched(true);
+                    }}
+                    onBlur={() => setExpirationTouched(true)}
+                    aria-describedby={
+                      showExpirationError
+                        ? 'note-expiration-helper note-expiration-error'
+                        : 'note-expiration-helper'
+                    }
+                    aria-invalid={showExpirationError}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium bg-stone-50 text-stone-800 outline-none focus:ring-2 ${
+                      showExpirationError
+                        ? 'border-red-300 focus:ring-red-500/20'
+                        : 'border-stone-200 focus:ring-emerald-500/20'
+                    }`}
+                  />
+                </div>
+                <p id="note-expiration-helper" className="text-[11px] text-stone-500">
+                  {t('creator.expiration_helper', 'La nota dejará de mostrarse públicamente después de esta fecha.')}
+                </p>
+                {showExpirationError && expirationValidation.errorKey && (
+                  <p id="note-expiration-error" role="alert" className="text-xs font-semibold text-red-600">
+                    {t(expirationValidation.errorKey)}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <button
           type="submit"
-          disabled={isSubmitting || !validation.valid}
+          disabled={isSubmitting || !validation.valid || (hasExpiration && expirationDate.trim() !== '' && !expirationValidation.valid)}
           className="w-fit px-10 py-3.5 bg-[#081e2b] text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#0e2a38] disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95 border border-[#0d9488]/40"
         >
           {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-[#00a88f] rounded-full animate-spin" /> : <Send className="w-5 h-5 text-[#00a88f]" />}

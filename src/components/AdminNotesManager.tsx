@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle } from 'lucide-react';
+import { deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react';
 import { db, logAnalyticsEvent } from '../firebase';
 import { ModerationState, Note, NotePrivacy } from '../types';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
+import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
 
 interface AdminNotesManagerProps {
   notes: Note[];
@@ -21,9 +22,17 @@ export const AdminNotesManager = ({
   const [search, setSearch] = useState('');
   const [privacyFilter, setPrivacyFilter] = useState<'all' | NotePrivacy>('all');
   const [modFilter, setModFilter] = useState<'all' | ModerationState>('all');
+  const [expirationFilter, setExpirationFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillMessage, setBackfillMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const legacyNotesMissingExpiresAt = useMemo(
+    () => notes.filter((n) => n.expiresAt === undefined),
+    [notes]
+  );
 
   const filteredNotes = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -31,6 +40,9 @@ export const AdminNotesManager = ({
       if (privacyFilter !== 'all' && n.privacy !== privacyFilter) return false;
       const state = n.moderationState || 'visible';
       if (modFilter !== 'all' && state !== modFilter) return false;
+      const expired = isNoteExpired(n);
+      if (expirationFilter === 'expired' && !expired) return false;
+      if (expirationFilter === 'active' && expired) return false;
       if (q) {
         const plainContent = markdownToPlainText(n.content || '', n.contentFormat).toLowerCase();
         const rawContent = (n.content || '').toLowerCase();
@@ -41,7 +53,36 @@ export const AdminNotesManager = ({
       }
       return true;
     });
-  }, [notes, search, privacyFilter, modFilter]);
+  }, [notes, search, privacyFilter, modFilter, expirationFilter]);
+
+  const handleBackfillExpiresAt = async () => {
+    if (legacyNotesMissingExpiresAt.length === 0) return;
+    setIsBackfilling(true);
+    setActionError(null);
+    setBackfillMessage(null);
+    try {
+      const chunkSize = 400;
+      let updated = 0;
+      for (let i = 0; i < legacyNotesMissingExpiresAt.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        const slice = legacyNotesMissingExpiresAt.slice(i, i + chunkSize);
+        for (const note of slice) {
+          batch.update(doc(db, 'notes', note.id), {
+            expiresAt: null,
+            updatedAt: serverTimestamp(),
+          });
+        }
+        await batch.commit();
+        updated += slice.length;
+      }
+      setBackfillMessage(`Se inicializó expiresAt = null en ${updated} notas existentes.`);
+      logAnalyticsEvent('admin_notes_expires_at_backfill', { updated_count: updated });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   const handleToggleModeration = async (note: Note) => {
     const current = note.moderationState || 'visible';
@@ -79,6 +120,37 @@ export const AdminNotesManager = ({
 
   return (
     <div className="space-y-4">
+      {legacyNotesMissingExpiresAt.length > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
+          <div className="flex items-start gap-2.5">
+            <Calendar className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+            <div>
+              <p className="font-semibold">
+                Hay {legacyNotesMissingExpiresAt.length} notas existentes sin el campo <span className="font-mono">expiresAt</span>.
+              </p>
+              <p className="text-amber-800 mt-0.5">
+                Ejecutá la migración para asignarles <span className="font-mono">expiresAt: null</span> y hacerlas visibles en las consultas públicas filtradas por vencimiento.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={isBackfilling}
+            onClick={handleBackfillExpiresAt}
+            className="px-4 py-2 bg-[#081e2b] hover:bg-[#0e2a38] disabled:opacity-50 text-white rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors"
+          >
+            {isBackfilling ? 'Migrando...' : 'Inicializar expiresAt: null'}
+          </button>
+        </div>
+      )}
+
+      {backfillMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-xs text-emerald-900">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+          <p>{backfillMessage}</p>
+        </div>
+      )}
+
       <div className="bg-white border border-stone-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -116,6 +188,17 @@ export const AdminNotesManager = ({
             <option value="removed">removed</option>
           </select>
 
+          <select
+            aria-label="Filtrar por vencimiento"
+            value={expirationFilter}
+            onChange={(e) => setExpirationFilter(e.target.value as 'all' | 'active' | 'expired')}
+            className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium text-stone-700"
+          >
+            <option value="all">Vencimiento: Todos</option>
+            <option value="active">Activas</option>
+            <option value="expired">Vencidas</option>
+          </select>
+
           <span className="text-xs text-stone-500 font-mono tabular-nums px-2">
             {filteredNotes.length} / {notes.length}
           </span>
@@ -142,6 +225,7 @@ export const AdminNotesManager = ({
                 <th className="py-2.5 px-3">Contenido</th>
                 <th className="py-2.5 px-3 whitespace-nowrap text-right">Coordenadas</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">Privacidad / Estado</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">Vencimiento</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">Creada</th>
                 <th className="py-2.5 px-3 whitespace-nowrap text-right">Acciones</th>
               </tr>
@@ -150,6 +234,8 @@ export const AdminNotesManager = ({
               {filteredNotes.slice(0, 150).map((note) => {
                 const modState = note.moderationState || 'visible';
                 const isBusy = busyId === note.id;
+                const expired = isNoteExpired(note);
+                const expDisplay = note.expiresAt ? formatExpirationDate(note.expiresAt, 'es-ES') : null;
                 return (
                   <tr key={note.id} className="hover:bg-stone-50/80 align-top">
                     <td className="py-2.5 px-3 whitespace-nowrap">
@@ -187,6 +273,17 @@ export const AdminNotesManager = ({
                       >
                         {modState}
                       </span>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {expired ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px] font-bold">
+                          Vencida {expDisplay ? `(${expDisplay})` : ''}
+                        </span>
+                      ) : expDisplay ? (
+                        <span className="text-stone-700 font-medium">{expDisplay}</span>
+                      ) : (
+                        <span className="text-stone-400">Sin vencimiento</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-mono tabular-nums text-stone-600 whitespace-nowrap">
                       {formatTs(note.createdAt)}
@@ -252,7 +349,7 @@ export const AdminNotesManager = ({
               })}
               {filteredNotes.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-stone-500">
+                  <td colSpan={7} className="py-10 text-center text-stone-500">
                     No se encontraron notas con los filtros actuales.
                   </td>
                 </tr>

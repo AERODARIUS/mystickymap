@@ -67,6 +67,8 @@ export interface Note {
   authorName: string;
   privacy: NotePrivacy;
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  expiresAt?: Timestamp | null;
   color?: string;
   emoji?: string;
   language?: string;

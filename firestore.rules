@@ -43,16 +43,20 @@ service cloud.firestore {
       return incoming().diff(existing()).affectedKeys();
     }
 
+    function isNotExpired(data) {
+      return !('expiresAt' in data) || data.expiresAt == null || data.expiresAt > request.time;
+    }
+
     // ===============================================================
     // Entity Validations
     // ===============================================================
     
     function isValidNote(data) {
       return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'privacy']) &&
-             data.keys().hasOnly(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'contentFormat', 'privacy', 'audioUrl', 'updatedAt', 'color', 'emoji', 'language', 'moderationState']) &&
-             data.keys().size() <= 14 && 
+             data.keys().hasOnly(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'contentFormat', 'privacy', 'audioUrl', 'updatedAt', 'color', 'emoji', 'language', 'moderationState', 'expiresAt']) &&
+             data.keys().size() <= 15 && 
              data.type in ['text', 'audio'] &&
-             data.authorId is string && data.authorId == request.auth.uid &&
+             data.authorId is string && (data.authorId == request.auth.uid || isAdmin()) &&
              data.authorName is string && data.authorName.size() <= 100 &&
              data.location is map && data.location.lat is number && data.location.lng is number &&
              data.privacy is string && data.privacy in ['public', 'unlisted', 'private'] &&
@@ -64,7 +68,8 @@ service cloud.firestore {
              (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
              (!('emoji' in data) || (data.emoji is string && data.emoji.size() <= 10)) &&
              (!('language' in data) || (data.language is string && data.language.size() <= 20)) &&
-             (!('moderationState' in data) || (data.moderationState is string && data.moderationState in ['visible', 'pending_review', 'removed']));
+             (!('moderationState' in data) || (data.moderationState is string && data.moderationState in ['visible', 'pending_review', 'removed'])) &&
+             (!('expiresAt' in data) || data.expiresAt == null || data.expiresAt is timestamp);
     }
 
     function isValidUser(data) {
@@ -106,12 +111,16 @@ service cloud.firestore {
 
     match /notes/{noteId} {
       allow get: if isValidId(noteId) && (
-        (existing().privacy in ['public', 'unlisted'] && (!('moderationState' in existing()) || existing().moderationState == 'visible')) || 
+        (existing().privacy in ['public', 'unlisted'] &&
+         (!('moderationState' in existing()) || existing().moderationState == 'visible') &&
+         isNotExpired(existing())) || 
         isOwner(existing().authorId) || 
         isAdmin()
       );
       allow list: if (
-        (resource.data.privacy == 'public' && (!('moderationState' in resource.data) || resource.data.moderationState == 'visible')) || 
+        (resource.data.privacy == 'public' &&
+         (!('moderationState' in resource.data) || resource.data.moderationState == 'visible') &&
+         isNotExpired(resource.data)) || 
         (isSignedIn() && resource.data.authorId == request.auth.uid) ||
         isAdmin()
       );
@@ -120,7 +129,8 @@ service cloud.firestore {
                        isValidId(noteId) &&
                        isValidNote(incoming()) && 
                        incoming().createdAt == request.time &&
-                       (!('moderationState' in incoming()) || incoming().moderationState == 'visible');
+                       (!('moderationState' in incoming()) || incoming().moderationState == 'visible') &&
+                       (!('expiresAt' in incoming()) || incoming().expiresAt == null || incoming().expiresAt > request.time);
       
       allow update: if isVerifiedUser() && 
                        isValidId(noteId) &&
@@ -131,7 +141,11 @@ service cloud.firestore {
                          incoming().createdAt == existing().createdAt && 
                          incoming().updatedAt == request.time &&
                          (!('moderationState' in incoming()) || incoming().moderationState == existing().moderationState) &&
-                         affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy'])
+                         (!('expiresAt' in incoming()) ||
+                          incoming().expiresAt == null ||
+                          (('expiresAt' in existing()) && incoming().expiresAt == existing().expiresAt) ||
+                          incoming().expiresAt > request.time) &&
+                         affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy', 'expiresAt'])
                        ));
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());
@@ -142,7 +156,11 @@ service cloud.firestore {
         }
         function canInteractWithNote() {
           let note = getParentNote();
-          return (note.privacy in ['public', 'unlisted'] && (!('moderationState' in note) || note.moderationState == 'visible')) || isOwner(note.authorId) || isAdmin();
+          return (note.privacy in ['public', 'unlisted'] &&
+                  (!('moderationState' in note) || note.moderationState == 'visible') &&
+                  isNotExpired(note)) ||
+                 isOwner(note.authorId) ||
+                 isAdmin();
         }
 
         allow get: if isValidId(commentId) && canInteractWithNote();

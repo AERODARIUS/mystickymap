@@ -27,7 +27,20 @@ const resources = {
         public: "PUBLIC",
         live: "LIVE",
         dropping: "Dropping...",
-        drop_note_here: "Drop Note Here"
+        drop_note_here: "Drop Note Here",
+        enable_expiration: "Set expiration date",
+        visible_until: "Visible until",
+        expiration_helper: "The note will stop being publicly displayed after this date.",
+        expiration_required: "Please select an expiration date.",
+        expiration_invalid: "Please enter a valid date.",
+        expiration_past: "The expiration date must be in the future.",
+        expired_edit_notice: "This note is expired and hidden from the public. Pick a new future date or disable expiration to publish it again."
+      },
+      expiration: {
+        expired_badge: "Expired",
+        visible_until_short: "Visible until",
+        expired_on: "Expired on",
+        no_expiration: "No expiration"
       },
       splash: {
         heading: "Google Maps API Key Required",
@@ -70,7 +83,11 @@ const resources = {
         delete_note: "Delete Note",
         delete_confirm: "Are you sure you want to delete this note?",
         no_notes: "No notes found in this area...",
-        created_by: "Created by"
+        created_by: "Created by",
+        tab_nearby: "Nearby",
+        tab_my_notes: "My Notes",
+        no_my_notes: "You haven't created any notes yet.",
+        renew_note: "Renew"
       },
       ar: {
         heading: "Heading: ",
@@ -136,7 +153,20 @@ const resources = {
         public: "PÚBLICA",
         live: "EN VIVO",
         dropping: "Dejando...",
-        drop_note_here: "Dejar Nota Aquí"
+        drop_note_here: "Dejar Nota Aquí",
+        enable_expiration: "Establecer fecha de expiración",
+        visible_until: "Visible hasta",
+        expiration_helper: "La nota dejará de mostrarse públicamente después de esta fecha.",
+        expiration_required: "Selecciona una fecha de expiración.",
+        expiration_invalid: "Ingresa una fecha válida.",
+        expiration_past: "La fecha de expiración debe ser futura.",
+        expired_edit_notice: "Esta nota está vencida y oculta al público. Elige una nueva fecha futura o desactiva la expiración para volver a publicarla."
+      },
+      expiration: {
+        expired_badge: "Vencida",
+        visible_until_short: "Visible hasta",
+        expired_on: "Venció el",
+        no_expiration: "Sin vencimiento"
       },
       splash: {
         heading: "Se requiere clave de API de Google Maps",
@@ -179,7 +209,11 @@ const resources = {
         delete_note: "Borrar Nota",
         delete_confirm: "¿Estás seguro de que deseas borrar esta nota?",
         no_notes: "No se encontraron notas en esta área...",
-        created_by: "Creado por"
+        created_by: "Creado por",
+        tab_nearby: "Cercanas",
+        tab_my_notes: "Mis notas",
+        no_my_notes: "Todavía no creaste notas.",
+        renew_note: "Renovar"
       },
       ar: {
         heading: "Rumbo: ",
@@ -245,7 +279,20 @@ const resources = {
         public: "PÚBLICA",
         live: "AO VIVO",
         dropping: "Deixando...",
-        drop_note_here: "Deixar Nota Aqui"
+        drop_note_here: "Deixar Nota Aqui",
+        enable_expiration: "Definir data de expiração",
+        visible_until: "Visível até",
+        expiration_helper: "A nota deixará de ser exibida publicamente após esta data.",
+        expiration_required: "Selecione uma data de expiração.",
+        expiration_invalid: "Insira uma data válida.",
+        expiration_past: "A data de expiração deve ser futura.",
+        expired_edit_notice: "Esta nota está expirada e oculta do público. Escolha uma nova data futura ou desative a expiração para publicá-la novamente."
+      },
+      expiration: {
+        expired_badge: "Expirada",
+        visible_until_short: "Visível até",
+        expired_on: "Expirou em",
+        no_expiration: "Sem expiração"
       },
       splash: {
         heading: "Chave da API do Google Maps Necessária",
@@ -287,7 +334,11 @@ const resources = {
         delete_note: "Excluir Nota",
         delete_confirm: "Tem certeza que deseja excluir esta nota?",
         no_notes: "Nenhuma nota encontrada nesta área...",
-        created_by: "Criado por"
+        created_by: "Criado por",
+        tab_nearby: "Próximas",
+        tab_my_notes: "Minhas notas",
+        no_my_notes: "Você ainda não criou notas.",
+        renew_note: "Renovar"
       },
       ar: {
         heading: "Rumo: ",
@@ -341,7 +392,20 @@ const resources = {
         public: "PUBLIC",
         live: "EN DIRECT",
         dropping: "Dépose...",
-        drop_note_here: "Déposer la Note Ici"
+        drop_note_here: "Déposer la Note Ici",
+        enable_expiration: "Définir une date d'expiration",
+        visible_until: "Visible jusqu'au",
+        expiration_helper: "La note ne sera plus affichée publiquement après cette date.",
+        expiration_required: "Veuillez sélectionner une date d'expiration.",
+        expiration_invalid: "Veuillez saisir une date valide.",
+        expiration_past: "La date d'expiration doit être future.",
+        expired_edit_notice: "Cette note est expirée et masquée du public. Choisissez une nouvelle date future ou désactivez l'expiration pour la republier."
+      },
+      expiration: {
+        expired_badge: "Expirée",
+        visible_until_short: "Visible jusqu'au",
+        expired_on: "Expirée le",
+        no_expiration: "Sans expiration"
       },
       splash: {
         heading: "Clé API Google Maps Requise",
@@ -383,7 +447,11 @@ const resources = {
         delete_note: "Supprimer la Note",
         delete_confirm: "Êtes-vous sûr de vouloir supprimer cette note ?",
         no_notes: "Aucune note trouvée dans cette zone...",
-        created_by: "Créé par"
+        created_by: "Créé par",
+        tab_nearby: "À proximité",
+        tab_my_notes: "Mes notes",
+        no_my_notes: "Vous n'avez pas encore créé de notes.",
+        renew_note: "Renouveler"
       },
       ar: {
         heading: "Direction: ",

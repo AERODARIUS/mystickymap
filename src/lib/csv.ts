@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { countVisibleCharacters } from './richText';
 import { getContentVisibleText, inspectMarkdownContent } from './tiptapMarkdown';
+import { calendarDateToUtcEndOfDay, parseCalendarDate } from './expiration';
 
 export type SpotheonImportField =
   | 'id'
@@ -23,7 +24,8 @@ export type SpotheonImportField =
   | 'emoji'
   | 'language'
   | 'authorName'
-  | 'updatedAt';
+  | 'updatedAt'
+  | 'expiresAt';
 
 export type CsvFieldMapping = Record<SpotheonImportField, string>;
 
@@ -53,6 +55,7 @@ export interface ValidatedNotePayload {
   emoji: string;
   language: string;
   moderationState: 'visible';
+  expiresAt: Timestamp | null;
   customUpdatedAt?: Timestamp;
 }
 
@@ -120,6 +123,7 @@ export const SPOTHEON_FIELD_DEFS: Array<{
   { field: 'language', label: 'language', hint: 'Código de idioma (ej. es-ES)' },
   { field: 'authorName', label: 'authorName', hint: 'Nombre visible del autor (máx. 100 caracteres)' },
   { field: 'updatedAt', label: 'updatedAt', hint: 'Fecha ISO/RFC/YYYY-MM-DD de actualización' },
+  { field: 'expiresAt', label: 'expiresAt (opcional)', hint: 'Fecha futura YYYY-MM-DD (America/Montevideo) o ISO 8601' },
   { field: 'id', label: 'id (opcional)', hint: 'ID estable [a-zA-Z0-9_-], máx. 128 caracteres' },
 ];
 
@@ -138,6 +142,7 @@ const HEADER_SYNONYMS: Record<SpotheonImportField, string[]> = {
   language: ['language', 'idioma', 'lang', 'locale'],
   authorName: ['authorname', 'author_name', 'autor', 'author', 'nombre_autor'],
   updatedAt: ['updatedat', 'updated_at', 'fecha_actualizacion', 'actualizado', 'last_modified', 'modified'],
+  expiresAt: ['expiresat', 'expires_at', 'fecha_expiracion', 'visible_hasta', 'expiracion', 'vencimiento'],
 };
 
 const VALID_ID_REGEX = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -245,6 +250,7 @@ export function autoMapHeaders(headers: string[]): CsvFieldMapping {
     language: '',
     authorName: '',
     updatedAt: '',
+    expiresAt: '',
   };
 
   const normalizedHeaders = headers.map((h) => ({
@@ -628,6 +634,22 @@ export function validateAndPrepareNotes(
       }
     }
 
+    // 13. ExpiresAt (optional; defaults to null)
+    const rawExpiresAt = getTrimmedVal(row, 'expiresAt');
+    let expiresAt: Timestamp | null = null;
+    if (rawExpiresAt) {
+      const expDate = parseCalendarDate(rawExpiresAt)
+        ? calendarDateToUtcEndOfDay(rawExpiresAt)
+        : parseFlexibleDate(rawExpiresAt);
+      if (!expDate) {
+        errors.push(`expiresAt inválido "${rawExpiresAt}" (usar YYYY-MM-DD o ISO 8601).`);
+      } else if (expDate.getTime() <= Date.now()) {
+        errors.push(`expiresAt "${rawExpiresAt}" debe ser una fecha futura.`);
+      } else {
+        expiresAt = Timestamp.fromDate(expDate);
+      }
+    }
+
     if (errors.length > 0 || lat === null || lng === null) {
       return {
         rowIndex,
@@ -660,6 +682,7 @@ export function validateAndPrepareNotes(
       emoji,
       language,
       moderationState: 'visible',
+      expiresAt,
       ...(customUpdatedAt ? { customUpdatedAt } : {}),
     };
 

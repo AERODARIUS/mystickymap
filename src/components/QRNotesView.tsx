@@ -10,9 +10,12 @@ import { RichTextViewer } from './RichTextViewer';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, logAnalyticsEvent } from '../firebase';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { canUserAccessNote } from '../lib/notesQuery';
+import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
 
 interface QRNotesViewProps {
   notes: Note[];
+  myNotes?: Note[];
   user: User | null;
   copyToClipboard: (id: string) => void;
   copyStatus: string | null;
@@ -22,13 +25,14 @@ interface QRNotesViewProps {
 
 export const QRNotesView = ({
   notes,
+  myNotes = [],
   user,
   copyToClipboard,
   copyStatus,
   onShowComments,
   onReportNote
 }: QRNotesViewProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { flags } = useFeatureFlags();
   const [scannedNote, setScannedNote] = useState<Note | null>(null);
   const [isScanning, setIsScanning] = useState(true);
@@ -42,6 +46,11 @@ export const QRNotesView = ({
   useEffect(() => {
     notesRef.current = notes;
   }, [notes]);
+
+  const myNotesRef = useRef(myNotes);
+  useEffect(() => {
+    myNotesRef.current = myNotes;
+  }, [myNotes]);
 
   useEffect(() => {
     const html5QrCode = new Html5Qrcode(scannerId);
@@ -87,8 +96,10 @@ export const QRNotesView = ({
               return;
             }
 
-            const note = notesRef.current.find(n => n.id === noteId);
-            if (note) {
+            const note =
+              notesRef.current.find(n => n.id === noteId) ||
+              myNotesRef.current.find(n => n.id === noteId);
+            if (note && canUserAccessNote(note, user?.uid)) {
               setScannedNote(note);
               setScanError(false);
               setIsScanning(false);
@@ -98,24 +109,20 @@ export const QRNotesView = ({
                 html5QrCode.pause();
               }
             } else {
-              // Not in shared notes list, try fetching directly (e.g. Unlisted notes)
+              // Not in shared notes list, try fetching directly (e.g. Unlisted notes or owner's expired notes)
               try {
                 const docSnap = await getDoc(doc(db, 'notes', noteId));
                 if (docSnap.exists()) {
-                  const data = docSnap.data();
-                  const privacy = data.privacy;
-                  const isNotePrivate = privacy === 'private';
-                  const isMine = data.authorId === user?.uid;
+                  const fetched = { id: docSnap.id, ...docSnap.data() } as Note;
 
-                  // If it's private and not mine, treat it as not found/not accessible
-                  if (isNotePrivate && !isMine) {
+                  // Block private, moderated, or expired notes unless viewer is owner
+                  if (!canUserAccessNote(fetched, user?.uid)) {
                     setScanError(true);
                     setIsScanning(false);
                     if (html5QrCode.getState() === 2) {
                       html5QrCode.pause();
                     }
                   } else {
-                    const fetched = { id: docSnap.id, ...data } as Note;
                     setScannedNote(fetched);
                     setScanError(false);
                     setIsScanning(false);
@@ -315,8 +322,16 @@ export const QRNotesView = ({
                   </div>
                 </div>
                 
-                <div className="pt-4 border-t border-white/20 flex justify-between items-center text-[10px] opacity-70 font-bold uppercase tracking-wider">
-                  <span>{scannedNote.createdAt?.toDate ? new Date(scannedNote.createdAt.toDate()).toLocaleDateString() : 'Recent'}</span>
+                <div className="pt-4 border-t border-white/20 flex justify-between items-center gap-2 text-[10px] opacity-80 font-bold uppercase tracking-wider">
+                  <span>
+                    {isNoteExpired(scannedNote)
+                      ? t('expiration.expired_badge', 'Vencida')
+                      : scannedNote.expiresAt
+                      ? `${t('expiration.visible_until_short', 'Visible hasta')} ${formatExpirationDate(scannedNote.expiresAt, i18n.language)}`
+                      : scannedNote.createdAt?.toDate
+                      ? new Date(scannedNote.createdAt.toDate()).toLocaleDateString()
+                      : 'Recent'}
+                  </span>
                   <span>{t('qr.view.captured_via')}</span>
                 </div>
               </div>
