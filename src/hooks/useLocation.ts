@@ -5,13 +5,17 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
   const [isPermissionDenied, setIsPermissionDenied] = useState(false);
+  const [hasResolvedInitialLocation, setHasResolvedInitialLocation] = useState(false);
+
+  const shouldWatchGeolocation = isTrackingLocation || !hasResolvedInitialLocation;
 
   useEffect(() => {
-    let watchId: number;
-    if (isTrackingLocation) {
+    let watchId: number | undefined;
+    if (shouldWatchGeolocation && typeof navigator !== 'undefined' && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setIsPermissionDenied(false);
+          setHasResolvedInitialLocation(true);
           const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setUserLocation(prev => {
             if (!prev) return newLoc;
@@ -24,6 +28,7 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
         (err) => {
           if (err.code === err.PERMISSION_DENIED) {
             setIsPermissionDenied(true);
+            setHasResolvedInitialLocation(true);
             onPermissionDenied?.();
           }
           // Avoid console.error for common permission denied scenarios as requested
@@ -50,10 +55,12 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
 
     window.addEventListener('deviceorientation', handleOrientation);
     return () => {
-      if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+      if (watchId !== undefined && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       window.removeEventListener('deviceorientation', handleOrientation);
     };
-  }, [isTrackingLocation, onPermissionDenied]);
+  }, [shouldWatchGeolocation, onPermissionDenied]);
 
   return { userLocation, heading, isPermissionDenied };
 };

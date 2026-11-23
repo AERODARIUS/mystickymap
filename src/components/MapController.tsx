@@ -10,7 +10,9 @@ export const MapController = ({
   candidateLocation,
   setCandidateLocation, 
   isTrackingLocation,
-  selectedNote
+  selectedNote,
+  hasInitiallyPositioned,
+  onInitialPositionComplete
 }: {
   isCreating: boolean;
   editingNote: Note | null;
@@ -20,6 +22,8 @@ export const MapController = ({
   setCandidateLocation: (loc: { lat: number, lng: number } | null) => void;
   isTrackingLocation: boolean;
   selectedNote: Note | null;
+  hasInitiallyPositioned: boolean;
+  onInitialPositionComplete: () => void;
 }) => {
   const map = useMap();
   const hasJumpedToInitial = useRef(false);
@@ -68,6 +72,20 @@ export const MapController = ({
       }
     }
   }, [selectedNote, map, isTrackingLocation]);
+
+  // One-time initial positioning on user's first entry, independent of auto-tracking toggle
+  useEffect(() => {
+    if (hasInitiallyPositioned || !userLocation || !map || isCreating || editingNote || selectedNote) {
+      return;
+    }
+
+    map.setCenter(userLocation);
+    const timer = setTimeout(() => {
+      onInitialPositionComplete();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [hasInitiallyPositioned, userLocation, map, isCreating, editingNote, selectedNote, onInitialPositionComplete]);
 
   useEffect(() => {
     if (isTrackingLocation && userLocation && map && !isCreating && !editingNote) {

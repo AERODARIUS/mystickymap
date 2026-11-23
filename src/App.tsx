@@ -64,12 +64,8 @@ export default function App() {
     return 'map';
   });
   const [isCreating, setIsCreating] = useState(false);
-  const [isTrackingLocation, setIsTrackingLocation] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !new URLSearchParams(window.location.search).has('noteId');
-    }
-    return true;
-  });
+  const [isTrackingLocation, setIsTrackingLocation] = useState(false);
+  const [hasInitiallyPositioned, setHasInitiallyPositioned] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [placementStep, setPlacementStep] = useState<'editing_content' | 'placing_location'>('editing_content');
   
@@ -106,6 +102,10 @@ export default function App() {
   
   const handlePermissionDenied = useCallback(() => {
     setIsTrackingLocation(false);
+  }, []);
+
+  const handleInitialPositionComplete = useCallback(() => {
+    setHasInitiallyPositioned(true);
   }, []);
 
   const { userLocation, heading, isPermissionDenied } = useLocation(isTrackingLocation, handlePermissionDenied);
@@ -424,6 +424,8 @@ export default function App() {
                   setCandidateLocation={setCandidateLocation}
                   isTrackingLocation={isTrackingLocation}
                   selectedNote={selectedNote}
+                  hasInitiallyPositioned={hasInitiallyPositioned}
+                  onInitialPositionComplete={handleInitialPositionComplete}
                 />
                 
                 <MapMarkers 
