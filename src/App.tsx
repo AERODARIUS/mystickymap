@@ -85,6 +85,7 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [focusNonce, setFocusNonce] = useState(0);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [qrCodeNoteId, setQrCodeNoteId] = useState<string | null>(null);
   const [commentNote, setCommentNote] = useState<Note | null>(null);
@@ -292,6 +293,7 @@ export default function App() {
   const handleFocusNote = useCallback((note: Note) => {
     setView('map');
     setSelectedNote(note);
+    setFocusNonce((prev) => prev + 1);
     setIsTrackingLocation(false);
     logAnalyticsEvent('note_view', { note_id: note.id, privacy: note.privacy, mode: 'anchor_list' });
   }, []);
@@ -407,7 +409,7 @@ export default function App() {
           <div className="absolute inset-0">
             {view === 'map' ? (
               <Map
-                defaultCenter={userLocation || { lat: 37.42, lng: -122.08 }}
+                defaultCenter={selectedNote?.location || userLocation || { lat: 37.42, lng: -122.08 }}
                 defaultZoom={15}
                 mapId="DEMO_MAP_ID"
                 style={{ width: '100%', height: '100%' }}
@@ -424,6 +426,7 @@ export default function App() {
                   setCandidateLocation={setCandidateLocation}
                   isTrackingLocation={isTrackingLocation}
                   selectedNote={selectedNote}
+                  focusNonce={focusNonce}
                   hasInitiallyPositioned={hasInitiallyPositioned}
                   onInitialPositionComplete={handleInitialPositionComplete}
                 />

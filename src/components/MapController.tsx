@@ -11,6 +11,7 @@ export const MapController = ({
   setCandidateLocation, 
   isTrackingLocation,
   selectedNote,
+  focusNonce = 0,
   hasInitiallyPositioned,
   onInitialPositionComplete
 }: {
@@ -22,12 +23,14 @@ export const MapController = ({
   setCandidateLocation: (loc: { lat: number, lng: number } | null) => void;
   isTrackingLocation: boolean;
   selectedNote: Note | null;
+  focusNonce?: number;
   hasInitiallyPositioned: boolean;
   onInitialPositionComplete: () => void;
 }) => {
   const map = useMap();
   const hasJumpedToInitial = useRef(false);
   const prevStepRef = useRef<string | null>(null);
+  const lastHandledFocusNonceRef = useRef(0);
 
   // Pan map when entering placement step
   useEffect(() => {
@@ -72,6 +75,18 @@ export const MapController = ({
       }
     }
   }, [selectedNote, map, isTrackingLocation]);
+
+  // Pan and zoom when a note is focused externally (e.g., AnchorView or AdminDashboard)
+  useEffect(() => {
+    if (!map || !selectedNote || focusNonce <= 0 || focusNonce === lastHandledFocusNonceRef.current) {
+      return;
+    }
+    lastHandledFocusNonceRef.current = focusNonce;
+    map.panTo(selectedNote.location);
+    if ((map.getZoom() ?? 0) < 16) {
+      map.setZoom(17);
+    }
+  }, [map, selectedNote, focusNonce]);
 
   // One-time initial positioning on user's first entry, independent of auto-tracking toggle
   useEffect(() => {

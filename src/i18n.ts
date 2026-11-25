@@ -126,6 +126,22 @@ const resources = {
         marketing_desc: "Allows Google Consent Mode signals (ad_storage, ad_user_data, ad_personalization) for conversion modeling and personalized experience.",
         always_active: "Always Active",
         manage_cookies: "Cookie Preferences"
+      },
+      cluster: {
+        title: "{{count}} notes at this location",
+        subtitle: "Select a note to view its full details",
+        search_placeholder: "Filter notes in this group...",
+        results_count: "Showing {{shown}} of {{total}}",
+        no_results: "No matching notes in this group.",
+        show_more: "Show {{count}} more ({{remaining}} remaining)",
+        close: "Close group list",
+        back_to_list: "Back to {{count}} notes",
+        list_aria: "Notes in this location",
+        cluster_aria: "Cluster of {{count}} notes. Activate to zoom in.",
+        coincident_aria: "{{count}} notes at this exact location. Activate to view list.",
+        single_aria: "Note by {{author}}: {{excerpt}}",
+        audio_note: "Audio note",
+        empty_note: "Untitled note"
       }
     }
   },
@@ -252,6 +268,22 @@ const resources = {
         marketing_desc: "Permite señales del modo de consentimiento de Google (ad_storage, ad_user_data, ad_personalization) para modelización y experiencia personalizada.",
         always_active: "Siempre activo",
         manage_cookies: "Preferencias de cookies"
+      },
+      cluster: {
+        title: "{{count}} notas en esta ubicación",
+        subtitle: "Selecciona una nota para ver su detalle completo",
+        search_placeholder: "Filtrar notas en este grupo...",
+        results_count: "Mostrando {{shown}} de {{total}}",
+        no_results: "No hay notas que coincidan en este grupo.",
+        show_more: "Mostrar {{count}} más ({{remaining}} restantes)",
+        close: "Cerrar lista del grupo",
+        back_to_list: "Volver a las {{count}} notas",
+        list_aria: "Notas en esta ubicación",
+        cluster_aria: "Grupo de {{count}} notas. Activa para acercar el mapa.",
+        coincident_aria: "{{count}} notas en esta misma ubicación. Activa para ver la lista.",
+        single_aria: "Nota de {{author}}: {{excerpt}}",
+        audio_note: "Nota de audio",
+        empty_note: "Nota sin título"
       }
     }
   },
@@ -365,6 +397,22 @@ const resources = {
         marketing_desc: "Permite sinais do modo de consentimento do Google para modelagem e personalização.",
         always_active: "Sempre ativo",
         manage_cookies: "Preferências de cookies"
+      },
+      cluster: {
+        title: "{{count}} notas neste local",
+        subtitle: "Selecione uma nota para ver os detalhes completos",
+        search_placeholder: "Filtrar notas neste grupo...",
+        results_count: "Mostrando {{shown}} de {{total}}",
+        no_results: "Nenhuma nota correspondente neste grupo.",
+        show_more: "Mostrar mais {{count}} ({{remaining}} restantes)",
+        close: "Fechar lista do grupo",
+        back_to_list: "Voltar às {{count}} notas",
+        list_aria: "Notas neste local",
+        cluster_aria: "Grupo de {{count}} notas. Ative para aproximar o mapa.",
+        coincident_aria: "{{count}} notas neste mesmo local. Ative para ver a lista.",
+        single_aria: "Nota de {{author}}: {{excerpt}}",
+        audio_note: "Nota de áudio",
+        empty_note: "Nota sem título"
       }
     }
   },
@@ -478,6 +526,22 @@ const resources = {
         marketing_desc: "Permet les signaux du mode de consentement de Google pour la modélisation et la personnalisation.",
         always_active: "Toujours actif",
         manage_cookies: "Préférences de cookies"
+      },
+      cluster: {
+        title: "{{count}} notes à cet endroit",
+        subtitle: "Sélectionnez une note pour afficher tous ses détails",
+        search_placeholder: "Filtrer les notes de ce groupe...",
+        results_count: "Affichage de {{shown}} sur {{total}}",
+        no_results: "Aucune note correspondante dans ce groupe.",
+        show_more: "Afficher {{count}} de plus ({{remaining}} restantes)",
+        close: "Fermer la liste du groupe",
+        back_to_list: "Retour aux {{count}} notes",
+        list_aria: "Notes à cet endroit",
+        cluster_aria: "Groupe de {{count}} notes. Activez pour zoomer.",
+        coincident_aria: "{{count}} notes à cet endroit exact. Activez pour voir la liste.",
+        single_aria: "Note de {{author}} : {{excerpt}}",
+        audio_note: "Note audio",
+        empty_note: "Note sans titre"
       }
     }
   }
