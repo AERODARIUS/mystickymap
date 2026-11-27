@@ -1,4 +1,14 @@
 export const DEFAULT_DEMO_MAP_ID = 'DEMO_MAP_ID';
+export const DEFAULT_USER_ZOOM = 15;
+export const WORLD_VIEW_CENTER = { lat: 20, lng: 0 };
+export const WORLD_VIEW_ZOOM = 2;
+export const WORLD_CONTINENTS_BOUNDS = {
+  north: 72,
+  south: -56,
+  west: -168,
+  east: 178,
+};
+export const WORLD_VIEW_PADDING = { top: 24, right: 16, bottom: 24, left: 16 };
 
 /**
  * Resolves the Google Maps Cloud Map ID from environment configuration,

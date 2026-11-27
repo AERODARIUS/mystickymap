@@ -42,7 +42,12 @@ import {
 import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from './lib/richText';
 import { timestampToCalendarDate, validateExpirationDateInput } from './lib/expiration';
 import { canUserAccessNote } from './lib/notesQuery';
-import { resolveMapId } from './lib/mapConfig';
+import {
+  DEFAULT_USER_ZOOM,
+  resolveMapId,
+  WORLD_VIEW_CENTER,
+  WORLD_VIEW_ZOOM,
+} from './lib/mapConfig';
 import { copyTextToClipboard } from './lib/clipboard';
 
 const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
@@ -117,7 +122,7 @@ export default function App() {
     setHasInitiallyPositioned(true);
   }, []);
 
-  const { userLocation, heading, isPermissionDenied } = useLocation(isTrackingLocation, handlePermissionDenied);
+  const { userLocation, heading, isPermissionDenied, isLocationUnavailable } = useLocation(isTrackingLocation, handlePermissionDenied);
 
   const handleStartCreate = useCallback(() => {
     setIsCreating(true);
@@ -442,8 +447,8 @@ export default function App() {
           <div className="absolute inset-0">
             {view === 'map' ? (
               <Map
-                defaultCenter={selectedNote?.location || userLocation || { lat: 37.42, lng: -122.08 }}
-                defaultZoom={15}
+                defaultCenter={selectedNote?.location || userLocation || WORLD_VIEW_CENTER}
+                defaultZoom={selectedNote?.location || userLocation ? DEFAULT_USER_ZOOM : WORLD_VIEW_ZOOM}
                 mapId={MAP_ID}
                 clickableIcons={false}
                 style={{ width: '100%', height: '100%' }}
@@ -463,6 +468,7 @@ export default function App() {
                   focusNonce={focusNonce}
                   hasInitiallyPositioned={hasInitiallyPositioned}
                   onInitialPositionComplete={handleInitialPositionComplete}
+                  isLocationDenied={isPermissionDenied || isLocationUnavailable}
                 />
                 
                 <MapMarkers 

@@ -1,6 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from '@vis.gl/react-google-maps';
 import { Note } from '../types';
+import {
+  DEFAULT_USER_ZOOM,
+  WORLD_CONTINENTS_BOUNDS,
+  WORLD_VIEW_CENTER,
+  WORLD_VIEW_PADDING,
+  WORLD_VIEW_ZOOM,
+} from '../lib/mapConfig';
 
 export const MapController = ({ 
   isCreating, 
@@ -13,7 +20,8 @@ export const MapController = ({
   selectedNote,
   focusNonce = 0,
   hasInitiallyPositioned,
-  onInitialPositionComplete
+  onInitialPositionComplete,
+  isLocationDenied = false,
 }: {
   isCreating: boolean;
   editingNote: Note | null;
@@ -26,9 +34,11 @@ export const MapController = ({
   focusNonce?: number;
   hasInitiallyPositioned: boolean;
   onInitialPositionComplete: () => void;
+  isLocationDenied?: boolean;
 }) => {
   const map = useMap();
   const hasJumpedToInitial = useRef(false);
+  const hasAppliedDeniedWorldView = useRef(false);
   const prevStepRef = useRef<string | null>(null);
   const lastHandledFocusNonceRef = useRef(0);
 
@@ -88,6 +98,30 @@ export const MapController = ({
     }
   }, [map, selectedNote, focusNonce]);
 
+  // Zoom out to fit all continents when location services are not granted
+  useEffect(() => {
+    if (
+      hasInitiallyPositioned ||
+      hasAppliedDeniedWorldView.current ||
+      !isLocationDenied ||
+      userLocation ||
+      !map ||
+      isCreating ||
+      editingNote ||
+      selectedNote
+    ) {
+      return;
+    }
+
+    hasAppliedDeniedWorldView.current = true;
+    if (typeof map.fitBounds === 'function') {
+      map.fitBounds(WORLD_CONTINENTS_BOUNDS, WORLD_VIEW_PADDING);
+    } else {
+      map.setCenter(WORLD_VIEW_CENTER);
+      map.setZoom(WORLD_VIEW_ZOOM);
+    }
+  }, [hasInitiallyPositioned, isLocationDenied, userLocation, map, isCreating, editingNote, selectedNote]);
+
   // One-time initial positioning on user's first entry, independent of auto-tracking toggle
   useEffect(() => {
     if (hasInitiallyPositioned || !userLocation || !map || isCreating || editingNote || selectedNote) {
@@ -95,6 +129,9 @@ export const MapController = ({
     }
 
     map.setCenter(userLocation);
+    if ((map.getZoom() ?? 0) < DEFAULT_USER_ZOOM) {
+      map.setZoom(DEFAULT_USER_ZOOM);
+    }
     const timer = setTimeout(() => {
       onInitialPositionComplete();
     }, 0);
@@ -105,6 +142,9 @@ export const MapController = ({
   useEffect(() => {
     if (isTrackingLocation && userLocation && map && !isCreating && !editingNote) {
       map.panTo(userLocation);
+      if ((map.getZoom() ?? 0) < DEFAULT_USER_ZOOM) {
+        map.setZoom(DEFAULT_USER_ZOOM);
+      }
     }
   }, [userLocation, map, isTrackingLocation, isCreating, editingNote]);
 

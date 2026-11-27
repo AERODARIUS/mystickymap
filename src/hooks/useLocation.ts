@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { DeviceOrientationEventiOS } from '../types/dom';
 
 export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: () => void) => {
+  const hasGeolocationSupport =
+    typeof navigator !== 'undefined' && Boolean(navigator.geolocation);
+
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
   const [isPermissionDenied, setIsPermissionDenied] = useState(false);
-  const [hasResolvedInitialLocation, setHasResolvedInitialLocation] = useState(false);
+  const [isLocationUnavailable, setIsLocationUnavailable] = useState(!hasGeolocationSupport);
+  const [hasResolvedInitialLocation, setHasResolvedInitialLocation] = useState(!hasGeolocationSupport);
 
   const shouldWatchGeolocation = isTrackingLocation || !hasResolvedInitialLocation;
 
@@ -15,6 +19,7 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setIsPermissionDenied(false);
+          setIsLocationUnavailable(false);
           setHasResolvedInitialLocation(true);
           const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setUserLocation(prev => {
@@ -28,11 +33,13 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
         (err) => {
           if (err.code === err.PERMISSION_DENIED) {
             setIsPermissionDenied(true);
+            setIsLocationUnavailable(true);
             setHasResolvedInitialLocation(true);
             onPermissionDenied?.();
-          }
-          // Avoid console.error for common permission denied scenarios as requested
-          if (err.code !== err.PERMISSION_DENIED) {
+          } else {
+            setIsLocationUnavailable(true);
+            setHasResolvedInitialLocation(true);
+            // Avoid console.error for common geolocation unavailable/timeout scenarios
             console.warn('Geolocation error:', err.message);
           }
         },
@@ -62,5 +69,5 @@ export const useLocation = (isTrackingLocation: boolean, onPermissionDenied?: ()
     };
   }, [shouldWatchGeolocation, onPermissionDenied]);
 
-  return { userLocation, heading, isPermissionDenied };
+  return { userLocation, heading, isPermissionDenied, isLocationUnavailable };
 };
