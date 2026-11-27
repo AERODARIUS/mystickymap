@@ -115,7 +115,11 @@ export const ReportModal = ({ note, comment, user, onClose }: ReportModalProps) 
       setIsSuccess(true);
       setTimeout(onClose, 2000);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'reports');
+      try {
+        handleFirestoreError(error, OperationType.CREATE, 'reports');
+      } catch {
+        // Logged and reported via handleFirestoreError; avoid unhandled rejection in async submit handler
+      }
     } finally {
       setIsSubmitting(false);
     }

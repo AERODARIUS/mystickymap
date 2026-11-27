@@ -157,7 +157,11 @@ export const MapMarkers = ({
       setSelectedNote(null);
       setDeleteId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `notes/${deleteId}`);
+      try {
+        handleFirestoreError(error, OperationType.DELETE, `notes/${deleteId}`);
+      } catch {
+        // Logged and reported via handleFirestoreError; avoid unhandled rejection in async click handler
+      }
     } finally {
       setIsDeleting(false);
     }

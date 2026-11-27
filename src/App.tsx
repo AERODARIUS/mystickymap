@@ -42,6 +42,8 @@ import {
 import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from './lib/richText';
 import { timestampToCalendarDate, validateExpirationDateInput } from './lib/expiration';
 import { canUserAccessNote } from './lib/notesQuery';
+import { resolveMapId } from './lib/mapConfig';
+import { copyTextToClipboard } from './lib/clipboard';
 
 const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
 const API_KEY =
@@ -49,6 +51,12 @@ const API_KEY =
   metaEnv?.VITE_GOOGLE_MAPS_API_KEY ||
   metaEnv?.GOOGLE_MAPS_PLATFORM_KEY ||
   '';
+const MAP_ID = resolveMapId(
+  process.env.GOOGLE_MAPS_MAP_ID ||
+    metaEnv?.VITE_GOOGLE_MAPS_MAP_ID ||
+    metaEnv?.VITE_GOOGLE_MAPS_PLATFORM_MAP_ID ||
+    metaEnv?.GOOGLE_MAPS_MAP_ID
+);
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'undefined' && API_KEY !== '';
 
 export default function App() {
@@ -248,11 +256,15 @@ export default function App() {
       setDraftHasExpiration(false);
       setDraftExpirationDate('');
     } catch (error) {
-      handleFirestoreError(
-        error, 
-        editingNote ? OperationType.UPDATE : OperationType.CREATE, 
-        editingNote ? `notes/${editingNote.id}` : 'notes'
-      );
+      try {
+        handleFirestoreError(
+          error,
+          editingNote ? OperationType.UPDATE : OperationType.CREATE,
+          editingNote ? `notes/${editingNote.id}` : 'notes'
+        );
+      } catch {
+        // Logged and reported via handleFirestoreError; avoid unhandled rejection in async click handler
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -276,13 +288,19 @@ export default function App() {
     logAnalyticsEvent('location_tracking_toggle', { enabled: tracking });
   }, []);
 
-  const copyToClipboard = useCallback((id: string) => {
-    const url = new URL(window.location.origin + window.location.pathname);
-    url.searchParams.set('noteId', id);
-    navigator.clipboard.writeText(url.toString());
-    setCopyStatus(id);
-    logAnalyticsEvent('share_note_link', { note_id: id });
-    setTimeout(() => setCopyStatus(null), 2000);
+  const copyToClipboard = useCallback(async (id: string) => {
+    try {
+      const url = new URL(window.location.origin + window.location.pathname);
+      url.searchParams.set('noteId', id);
+      const copied = await copyTextToClipboard(url.toString());
+      if (copied) {
+        setCopyStatus(id);
+        logAnalyticsEvent('share_note_link', { note_id: id });
+        setTimeout(() => setCopyStatus(null), 2000);
+      }
+    } catch {
+      // Never leak unhandled promise rejection from clipboard/share action
+    }
   }, []);
 
   const handleSetView = useCallback((nextView: 'map' | 'ar' | 'anchor' | 'qr') => {
@@ -321,6 +339,8 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const noteIdFromUrl = urlParams.get('noteId');
 
+    let isCancelled = false;
+
     if (noteIdFromUrl) {
       logAnalyticsEvent('qr_scan', { note_id: noteIdFromUrl, source: 'url_param' });
       logAnalyticsEvent('note_view', { note_id: noteIdFromUrl, mode: 'url_param' });
@@ -330,14 +350,21 @@ export default function App() {
         myNotes.find(n => n.id === noteIdFromUrl);
       if (targetNote) {
         hasHandledUrlNote.current = true;
-        setTimeout(() => setCommentNote(targetNote), 0);
+        setTimeout(() => {
+          if (!isCancelled) setCommentNote(targetNote);
+        }, 0);
       } else {
         // Even if we have other notes, this one isn't in the list
         // If not in the discovery list (e.g. Unlisted or out of range), try to fetch it directly
-        import('./firebase').then(async ({ db }) => {
-          const { doc, getDoc } = await import('firebase/firestore');
+        (async () => {
           try {
-            const docSnap = await getDoc(doc(db, 'notes', noteIdFromUrl));
+            const [{ db: firestoreDb }, { doc, getDoc }] = await Promise.all([
+              import('./firebase'),
+              import('firebase/firestore'),
+            ]);
+            if (isCancelled) return;
+            const docSnap = await getDoc(doc(firestoreDb, 'notes', noteIdFromUrl));
+            if (isCancelled) return;
             if (docSnap.exists()) {
               const data = docSnap.data();
               const fetchedNote = {
@@ -347,16 +374,22 @@ export default function App() {
 
               if (canUserAccessNote(fetchedNote, user?.uid, Date.now(), isAdmin)) {
                 hasHandledUrlNote.current = true;
-                setTimeout(() => setCommentNote(fetchedNote), 0);
+                setTimeout(() => {
+                  if (!isCancelled) setCommentNote(fetchedNote);
+                }, 0);
               }
             }
           } catch {
-            // Silently fail if not found or no permission
+            // Silently fail if not found, chunk load fails, or no permission
             console.debug("Note from URL not accessible:", noteIdFromUrl);
           }
-        });
+        })();
       }
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [notes, myNotes, isAuthReady, user?.uid, isAdmin]);
 
   const handleLogin = async () => {
@@ -411,7 +444,8 @@ export default function App() {
               <Map
                 defaultCenter={selectedNote?.location || userLocation || { lat: 37.42, lng: -122.08 }}
                 defaultZoom={15}
-                mapId="DEMO_MAP_ID"
+                mapId={MAP_ID}
+                clickableIcons={false}
                 style={{ width: '100%', height: '100%' }}
                 gestureHandling="greedy"
                 disableDefaultUI

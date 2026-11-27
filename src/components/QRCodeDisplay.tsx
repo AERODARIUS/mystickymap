@@ -1,10 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Share2, Smartphone } from 'lucide-react';
+import { X, Download, Share2, Smartphone, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Logo } from './Logo';
 import { logAnalyticsEvent } from '../firebase';
+import { copyTextToClipboard } from '../lib/clipboard';
 
 interface QRCodeDisplayProps {
   noteId: string;
@@ -15,6 +16,7 @@ interface QRCodeDisplayProps {
 export const QRCodeDisplay = ({ noteId, isOpen, onClose }: QRCodeDisplayProps) => {
   const { t } = useTranslation();
   const posterRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
   const shareUrl = `${window.location.origin}/?noteId=${noteId}`;
 
   useEffect(() => {
@@ -157,21 +159,35 @@ export const QRCodeDisplay = ({ noteId, isOpen, onClose }: QRCodeDisplayProps) =
                 {t('qr.display.download')}
               </button>
               <button
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: 'SPOTHEON',
-                      text: t('qr.display.share_text'),
-                      url: shareUrl,
-                    }).catch(console.error);
-                  } else {
-                    navigator.clipboard.writeText(shareUrl);
+                onClick={async () => {
+                  try {
+                    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+                      try {
+                        await navigator.share({
+                          title: 'SPOTHEON',
+                          text: t('qr.display.share_text'),
+                          url: shareUrl,
+                        });
+                        return;
+                      } catch (err) {
+                        if (err instanceof DOMException && err.name === 'AbortError') {
+                          return;
+                        }
+                      }
+                    }
+                    const ok = await copyTextToClipboard(shareUrl);
+                    if (ok) {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }
+                  } catch {
+                    // Prevent unhandled promise rejection
                   }
                 }}
                 className="p-3.5 bg-[#f0fdfa] text-[#0d9488] border border-[#ccfbf1] rounded-2xl hover:bg-[#ccfbf1] transition-colors"
                 title="Share"
               >
-                <Share2 className="w-5 h-5" />
+                {copied ? <Check className="w-5 h-5 text-emerald-600" /> : <Share2 className="w-5 h-5" />}
               </button>
             </div>
             

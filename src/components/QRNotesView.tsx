@@ -53,8 +53,19 @@ export const QRNotesView = ({
   }, [myNotes]);
 
   useEffect(() => {
+    let isCancelled = false;
     const html5QrCode = new Html5Qrcode(scannerId);
     qrRef.current = html5QrCode;
+
+    const safePause = () => {
+      try {
+        if (html5QrCode.getState() === 2) {
+          html5QrCode.pause();
+        }
+      } catch (e) {
+        console.warn('Could not pause QR scanner:', e);
+      }
+    };
 
     const startScanning = async () => {
       try {
@@ -65,6 +76,8 @@ export const QRNotesView = ({
             qrbox: { width: 250, height: 250 }
           },
           async (decodedText) => {
+            if (isCancelled) return;
+
             // Process QR code text
             let noteId = decodedText.trim();
             let isMalformed = false;
@@ -90,9 +103,7 @@ export const QRNotesView = ({
             if (isMalformed) {
               setScanError(true);
               setIsScanning(false);
-              if (html5QrCode.getState() === 2) {
-                html5QrCode.pause();
-              }
+              safePause();
               return;
             }
 
@@ -105,13 +116,12 @@ export const QRNotesView = ({
               setIsScanning(false);
               logAnalyticsEvent('qr_scan', { note_id: note.id, source: 'camera_scanner' });
               logAnalyticsEvent('note_view', { note_id: note.id, mode: 'qr_camera', privacy: note.privacy });
-              if (html5QrCode.getState() === 2) {
-                html5QrCode.pause();
-              }
+              safePause();
             } else {
               // Not in shared notes list, try fetching directly (e.g. Unlisted notes or owner's expired notes)
               try {
                 const docSnap = await getDoc(doc(db, 'notes', noteId));
+                if (isCancelled) return;
                 if (docSnap.exists()) {
                   const fetched = { id: docSnap.id, ...docSnap.data() } as Note;
 
@@ -119,32 +129,25 @@ export const QRNotesView = ({
                   if (!canUserAccessNote(fetched, user?.uid)) {
                     setScanError(true);
                     setIsScanning(false);
-                    if (html5QrCode.getState() === 2) {
-                      html5QrCode.pause();
-                    }
+                    safePause();
                   } else {
                     setScannedNote(fetched);
                     setScanError(false);
                     setIsScanning(false);
                     logAnalyticsEvent('qr_scan', { note_id: fetched.id, source: 'camera_scanner' });
                     logAnalyticsEvent('note_view', { note_id: fetched.id, mode: 'qr_camera', privacy: fetched.privacy });
-                    if (html5QrCode.getState() === 2) {
-                      html5QrCode.pause();
-                    }
+                    safePause();
                   }
                 } else {
                   setScanError(true);
                   setIsScanning(false);
-                  if (html5QrCode.getState() === 2) {
-                    html5QrCode.pause();
-                  }
+                  safePause();
                 }
               } catch (err) {
+                if (isCancelled) return;
                 setScanError(true);
                 setIsScanning(false);
-                if (html5QrCode.getState() === 2) {
-                  html5QrCode.pause();
-                }
+                safePause();
                 console.error("Error fetching note:", err);
               }
             }
@@ -153,6 +156,13 @@ export const QRNotesView = ({
             // Error scanning
           }
         );
+
+        if (isCancelled) {
+          if (html5QrCode.isScanning) {
+            html5QrCode.stop().catch(() => {});
+          }
+          return;
+        }
 
         // Check for torch support
         try {
@@ -165,15 +175,16 @@ export const QRNotesView = ({
           console.warn("Torch capabilities not available", e);
         }
       } catch (err) {
-        console.error("Error starting QR scanner:", err);
+        console.warn("Error starting QR scanner:", err);
       }
     };
 
     startScanning();
 
     return () => {
+      isCancelled = true;
       if (html5QrCode.isScanning) {
-        html5QrCode.stop().catch(err => console.error("Error stopping QR scanner:", err));
+        html5QrCode.stop().catch(err => console.warn("Error stopping QR scanner:", err));
       }
     };
   }, [user?.uid]);

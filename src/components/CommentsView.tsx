@@ -72,6 +72,8 @@ export const CommentsView = ({ note, isOpen, user, onClose, onEditNote, onReport
       setCommentMarkdown('');
       setVisibleLength(0);
       setStorageLength(0);
+    } catch {
+      // Logged and reported via handleFirestoreError in useComments; keep editor intact and avoid unhandled rejection
     } finally {
       setIsSubmitting(false);
     }
@@ -205,7 +207,11 @@ export const CommentsView = ({ note, isOpen, user, onClose, onEditNote, onReport
                           </span>
                           {user && (comment.authorId === user.uid || note.authorId === user.uid) && (
                             <button
-                              onClick={() => deleteComment(comment.id)}
+                              onClick={() => {
+                                Promise.resolve(deleteComment(comment.id)).catch(() => {
+                                  // Logged and reported via handleFirestoreError in useComments
+                                });
+                              }}
                               className="p-1 text-stone-300 hover:text-red-500 transition-colors"
                               aria-label={t('comments.delete')}
                             >

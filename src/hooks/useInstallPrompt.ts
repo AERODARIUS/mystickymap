@@ -43,23 +43,27 @@ export function useInstallPrompt() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
-    // Show the install prompt
-    await deferredPrompt.prompt();
+    try {
+      // Show the install prompt
+      await deferredPrompt.prompt();
 
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      logAnalyticsEvent('pwa_install_accepted');
-      console.log('User accepted the install prompt');
-    } else {
-      logAnalyticsEvent('pwa_install_dismissed');
-      console.log('User dismissed the install prompt');
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+
+      if (outcome === 'accepted') {
+        logAnalyticsEvent('pwa_install_accepted');
+        console.log('User accepted the install prompt');
+      } else {
+        logAnalyticsEvent('pwa_install_dismissed');
+        console.log('User dismissed the install prompt');
+      }
+    } catch (err) {
+      console.warn('PWA install prompt failed:', err);
+    } finally {
+      // We used the prompt, so clear it
+      setDeferredPrompt(null);
+      setIsInstallable(false);
     }
-
-    // We used the prompt, so clear it
-    setDeferredPrompt(null);
-    setIsInstallable(false);
   };
 
   return { isInstallable, handleInstallClick };

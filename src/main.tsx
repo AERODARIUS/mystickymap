@@ -19,7 +19,12 @@ if (typeof window !== 'undefined' && 'caches' in window) {
 }
 
 // Register service worker
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onRegisterError(error) {
+    console.warn('Service worker registration failed:', error);
+  },
+});
 
 // Handle unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {

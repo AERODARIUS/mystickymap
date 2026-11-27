@@ -336,7 +336,11 @@ export const NoteCreator = ({
 
       if (onNoteCreated) onNoteCreated();
     } catch (error) {
-      handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, editingNote ? `notes/${editingNote.id}` : 'notes');
+      try {
+        handleFirestoreError(error, editingNote ? OperationType.UPDATE : OperationType.CREATE, editingNote ? `notes/${editingNote.id}` : 'notes');
+      } catch {
+        // Logged and reported via handleFirestoreError; avoid unhandled rejection in async submit handler
+      }
     } finally {
       setIsSubmitting(false);
     }

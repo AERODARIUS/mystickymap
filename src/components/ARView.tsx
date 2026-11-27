@@ -38,21 +38,35 @@ export const ARView = ({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let activeStream: MediaStream | null = null;
     const currentVideoRef = videoRef.current;
+
     async function setupCamera() {
       try {
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+          return;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        activeStream = stream;
         if (currentVideoRef) {
           currentVideoRef.srcObject = stream;
         }
       } catch (err) {
-        console.error("Error accessing camera:", err);
+        console.warn("Error accessing camera:", err);
       }
     }
     setupCamera();
     return () => {
-      if (currentVideoRef?.srcObject) {
-        (currentVideoRef.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+      isMounted = false;
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
+      } else if (currentVideoRef?.srcObject) {
+        (currentVideoRef.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       }
     };
   }, []);

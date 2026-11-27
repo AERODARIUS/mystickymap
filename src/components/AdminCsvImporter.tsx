@@ -119,18 +119,22 @@ export const AdminCsvImporter = ({
 
   const handleFileSelected = async (file: File | undefined) => {
     if (!file) return;
-    const buffer = await file.arrayBuffer();
-    let text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-    // Fallback if UTF-8 decoding produced replacement characters from Latin-1 CSVs
-    if (text.includes('\uFFFD')) {
-      try {
-        text = new TextDecoder('iso-8859-1').decode(buffer);
-      } catch {
-        // Keep UTF-8 text if iso-8859-1 is unavailable
+    try {
+      const buffer = await file.arrayBuffer();
+      let text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
+      // Fallback if UTF-8 decoding produced replacement characters from Latin-1 CSVs
+      if (text.includes('\uFFFD')) {
+        try {
+          text = new TextDecoder('iso-8859-1').decode(buffer);
+        } catch {
+          // Keep UTF-8 text if iso-8859-1 is unavailable
+        }
       }
+      loadCsvContent(text, file.name);
+      setShowPasteInput(false);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'No se pudo leer el archivo CSV.');
     }
-    loadCsvContent(text, file.name);
-    setShowPasteInput(false);
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {

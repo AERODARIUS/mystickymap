@@ -93,6 +93,15 @@ export default defineConfig(({mode}) => {
       'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(
         env.GOOGLE_MAPS_PLATFORM_KEY || env.VITE_GOOGLE_MAPS_API_KEY || env.GOOGLE_MAPS_API_KEY || ''
       ),
+      'process.env.GOOGLE_MAPS_MAP_ID': JSON.stringify(
+        env.GOOGLE_MAPS_MAP_ID ||
+          process.env.GOOGLE_MAPS_MAP_ID ||
+          env.VITE_GOOGLE_MAPS_MAP_ID ||
+          process.env.VITE_GOOGLE_MAPS_MAP_ID ||
+          env.GOOGLE_MAPS_PLATFORM_MAP_ID ||
+          process.env.GOOGLE_MAPS_PLATFORM_MAP_ID ||
+          ''
+      ),
     },
     resolve: {
       alias: {
