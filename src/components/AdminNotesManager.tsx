@@ -6,7 +6,7 @@ import { ModerationState, Note, NotePrivacy } from '../types';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
 import { isNoteExpired } from '../lib/expiration';
 import { buildNotesExportCsv } from '../lib/csv';
-import { normalizeGroupName } from '../lib/groups';
+import { extractAvailableGroups, getGroupKey, normalizeGroupName } from '../lib/groups';
 
 interface AdminNotesManagerProps {
   notes: Note[];
@@ -25,6 +25,7 @@ export const AdminNotesManager = ({
   const [privacyFilter, setPrivacyFilter] = useState<'all' | NotePrivacy>('all');
   const [modFilter, setModFilter] = useState<'all' | ModerationState>('all');
   const [expirationFilter, setExpirationFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isBackfilling, setIsBackfilling] = useState(false);
@@ -36,6 +37,36 @@ export const AdminNotesManager = ({
     [notes]
   );
 
+  const { groupOptions, ungroupedCount } = useMemo(() => {
+    const counts = new Map<string, number>();
+    let ungrouped = 0;
+    for (const n of notes) {
+      const key = getGroupKey(n.group);
+      if (!key) {
+        ungrouped += 1;
+      } else {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    const labels = extractAvailableGroups(notes);
+    return {
+      groupOptions: labels.map((label) => {
+        const key = label.toLowerCase();
+        return {
+          key,
+          label,
+          count: counts.get(key) ?? 0,
+        };
+      }),
+      ungroupedCount: ungrouped,
+    };
+  }, [notes]);
+
+  const effectiveGroupFilter = useMemo(() => {
+    if (groupFilter === 'all' || groupFilter === '__ungrouped__') return groupFilter;
+    return groupOptions.some((g) => g.key === groupFilter) ? groupFilter : 'all';
+  }, [groupFilter, groupOptions]);
+
   const filteredNotes = useMemo(() => {
     const q = search.trim().toLowerCase();
     return notes.filter((n) => {
@@ -45,17 +76,27 @@ export const AdminNotesManager = ({
       const expired = isNoteExpired(n);
       if (expirationFilter === 'expired' && !expired) return false;
       if (expirationFilter === 'active' && expired) return false;
+      const noteGroupKey = getGroupKey(n.group);
+      if (effectiveGroupFilter === '__ungrouped__' && noteGroupKey !== undefined) return false;
+      if (
+        effectiveGroupFilter !== 'all' &&
+        effectiveGroupFilter !== '__ungrouped__' &&
+        noteGroupKey !== effectiveGroupFilter
+      ) {
+        return false;
+      }
       if (q) {
         const plainContent = markdownToPlainText(n.content || '', n.contentFormat).toLowerCase();
         const rawContent = (n.content || '').toLowerCase();
         const matchContent = plainContent.includes(q) || rawContent.includes(q);
         const matchAuthor = (n.authorName || '').toLowerCase().includes(q);
+        const matchGroup = (normalizeGroupName(n.group) || '').toLowerCase().includes(q);
         const matchId = n.id.toLowerCase().includes(q);
-        if (!matchContent && !matchAuthor && !matchId) return false;
+        if (!matchContent && !matchAuthor && !matchGroup && !matchId) return false;
       }
       return true;
     });
-  }, [notes, search, privacyFilter, modFilter, expirationFilter]);
+  }, [notes, search, privacyFilter, modFilter, expirationFilter, effectiveGroupFilter]);
 
   const handleBackfillExpiresAt = async () => {
     if (legacyNotesMissingExpiresAt.length === 0) return;
@@ -172,7 +213,7 @@ export const AdminNotesManager = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por contenido, autor o ID..."
+            placeholder="Buscar por contenido, autor, grupo o ID..."
             className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
           />
         </div>
@@ -211,6 +252,21 @@ export const AdminNotesManager = ({
             <option value="all">Vencimiento: Todos</option>
             <option value="active">Activas</option>
             <option value="expired">Vencidas</option>
+          </select>
+
+          <select
+            aria-label="Filtrar por grupo"
+            value={effectiveGroupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+            className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium text-stone-700 max-w-[200px]"
+          >
+            <option value="all">Grupo: Todos</option>
+            <option value="__ungrouped__">Sin grupo ({ungroupedCount})</option>
+            {groupOptions.map((g) => (
+              <option key={g.key} value={g.key}>
+                {g.label} ({g.count})
+              </option>
+            ))}
           </select>
 
           <span className="text-xs text-stone-500 font-mono tabular-nums px-2">

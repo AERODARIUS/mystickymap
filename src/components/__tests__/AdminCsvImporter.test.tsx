@@ -224,4 +224,110 @@ describe('AdminCsvImporter rich-text UI, preview toggle, and batch writes', () =
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
+
+  it('filters notes by group (including case-insensitive deduplication and ungrouped) and exports the filtered subset', () => {
+    const createObjectUrlSpy = vi.fn(() => 'blob:mock-url');
+    const revokeObjectUrlSpy = vi.fn();
+    const clickSpy = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: createObjectUrlSpy,
+      revokeObjectURL: revokeObjectUrlSpy,
+    });
+    const origCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = origCreateElement(tagName);
+      if (tagName === 'a') {
+        vi.spyOn(el as HTMLAnchorElement, 'click').mockImplementation(clickSpy);
+      }
+      return el;
+    });
+
+    const notes: Note[] = [
+      {
+        id: 'n1',
+        type: 'text',
+        content: 'Festival opening',
+        contentFormat: 'plain',
+        location: { lat: -34.9, lng: -56.2 },
+        authorId: 'u1',
+        authorName: 'Alice',
+        privacy: 'public',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        group: 'Events',
+      },
+      {
+        id: 'n2',
+        type: 'text',
+        content: 'Evening meetup',
+        contentFormat: 'plain',
+        location: { lat: -34.905, lng: -56.205 },
+        authorId: 'u2',
+        authorName: 'Bob',
+        privacy: 'private',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        group: 'events',
+      },
+      {
+        id: 'n3',
+        type: 'text',
+        content: 'Cafe special',
+        contentFormat: 'plain',
+        location: { lat: -34.91, lng: -56.21 },
+        authorId: 'u3',
+        authorName: 'Carla',
+        privacy: 'public',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        group: 'Restaurants',
+      },
+      {
+        id: 'n4',
+        type: 'text',
+        content: 'Standalone bench note',
+        contentFormat: 'plain',
+        location: { lat: -34.92, lng: -56.22 },
+        authorId: 'u4',
+        authorName: 'Diego',
+        privacy: 'public',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+      },
+    ];
+
+    render(<AdminNotesManager notes={notes} loading={false} error={null} />);
+
+    const groupSelect = screen.getByLabelText('Filtrar por grupo') as HTMLSelectElement;
+    // Case-insensitive deduplication merges Events + events into one option with count 2
+    expect(screen.getByRole('option', { name: /Events \(2\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Restaurants \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Sin grupo \(1\)/ })).toBeInTheDocument();
+
+    // Filter to Events -> both n1 and n2 appear
+    fireEvent.change(groupSelect, { target: { value: 'events' } });
+    expect(screen.getByText('Festival opening')).toBeInTheDocument();
+    expect(screen.getByText('Evening meetup')).toBeInTheDocument();
+    expect(screen.queryByText('Cafe special')).not.toBeInTheDocument();
+    expect(screen.queryByText('Standalone bench note')).not.toBeInTheDocument();
+
+    // Combine with privacy filter -> only n1 remains and Exportar CSV exports 1 note
+    fireEvent.change(screen.getByLabelText('Filtrar por privacidad'), {
+      target: { value: 'public' },
+    });
+    expect(screen.getByText('Festival opening')).toBeInTheDocument();
+    expect(screen.queryByText('Evening meetup')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Exportar CSV/i }));
+    expect(mockLogAnalytics).toHaveBeenCalledWith('admin_notes_csv_export', { exported_count: 1 });
+
+    // Reset privacy and select ungrouped notes only
+    fireEvent.change(screen.getByLabelText('Filtrar por privacidad'), {
+      target: { value: 'all' },
+    });
+    fireEvent.change(groupSelect, { target: { value: '__ungrouped__' } });
+    expect(screen.getByText('Standalone bench note')).toBeInTheDocument();
+    expect(screen.queryByText('Festival opening')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cafe special')).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });
