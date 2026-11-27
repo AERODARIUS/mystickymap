@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
-import { Calendar, ChevronRight, FileText, Layers, Link, Lock, Search, X } from 'lucide-react';
+import { ChevronRight, FileText, Layers, Link, Lock, Search, X } from 'lucide-react';
 import { Note } from '../types';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
-import { formatExpirationDate } from '../lib/expiration';
 
 interface ClusterNotesSheetProps {
   isOpen: boolean;
@@ -25,7 +24,7 @@ export const ClusterNotesSheet: React.FC<ClusterNotesSheetProps> = ({
   onClose,
   returnFocusElement,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -305,16 +304,6 @@ export const ClusterNotesSheet: React.FC<ClusterNotesSheetProps> = ({
                         <p className="text-sm text-stone-700 leading-snug line-clamp-2 break-words">
                           {excerpt}
                         </p>
-
-                        {note.expiresAt && (
-                          <p className="mt-1 text-[10px] text-stone-500 font-medium flex items-center gap-1">
-                            <Calendar className="w-2.5 h-2.5" />
-                            <span>
-                              {t('expiration.visible_until_short', 'Visible until')}{' '}
-                              {formatExpirationDate(note.expiresAt, i18n.language)}
-                            </span>
-                          </p>
-                        )}
                       </div>
 
                       <ChevronRight

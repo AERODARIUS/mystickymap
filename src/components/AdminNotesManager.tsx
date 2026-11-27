@@ -4,7 +4,7 @@ import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle, Calendar, CheckCircle
 import { db, logAnalyticsEvent } from '../firebase';
 import { ModerationState, Note, NotePrivacy } from '../types';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
-import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
+import { isNoteExpired } from '../lib/expiration';
 
 interface AdminNotesManagerProps {
   notes: Note[];
@@ -235,7 +235,6 @@ export const AdminNotesManager = ({
                 const modState = note.moderationState || 'visible';
                 const isBusy = busyId === note.id;
                 const expired = isNoteExpired(note);
-                const expDisplay = note.expiresAt ? formatExpirationDate(note.expiresAt, 'es-ES') : null;
                 return (
                   <tr key={note.id} className="hover:bg-stone-50/80 align-top">
                     <td className="py-2.5 px-3 whitespace-nowrap">
@@ -277,12 +276,10 @@ export const AdminNotesManager = ({
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       {expired ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px] font-bold">
-                          Vencida {expDisplay ? `(${expDisplay})` : ''}
+                          Vencida
                         </span>
-                      ) : expDisplay ? (
-                        <span className="text-stone-700 font-medium">{expDisplay}</span>
                       ) : (
-                        <span className="text-stone-400">Sin vencimiento</span>
+                        <span className="text-stone-600 font-medium">Activa</span>
                       )}
                     </td>
                     <td className="py-2.5 px-3 font-mono tabular-nums text-stone-600 whitespace-nowrap">

@@ -5,6 +5,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { Timestamp } from 'firebase/firestore';
 import { NoteCreator } from '../NoteCreator';
 import { AnchorView } from '../AnchorView';
+import { ClusterNotesSheet } from '../ClusterNotesSheet';
+import { CommentsView } from '../CommentsView';
+import { AdminNotesManager } from '../AdminNotesManager';
 import { Note } from '../../types';
 
 const mockAddDoc = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>(async () => ({ id: 'created-note-id' }));
@@ -27,7 +30,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => {
+    t: (key: string, fallbackOrOpts?: string | Record<string, unknown>) => {
       const dict: Record<string, string> = {
         'creator.new_note': 'Nueva Nota',
         'creator.edit_note': 'Editar Nota',
@@ -55,7 +58,12 @@ vi.mock('react-i18next', () => ({
         'creator.public': 'PÚBLICA',
         'creator.private': 'PRIVADA',
       };
-      return dict[key] || fallback || key;
+      if (dict[key]) return dict[key];
+      if (typeof fallbackOrOpts === 'string') return fallbackOrOpts;
+      if (fallbackOrOpts && typeof fallbackOrOpts.defaultValue === 'string') {
+        return fallbackOrOpts.defaultValue;
+      }
+      return key;
     },
     i18n: { language: 'es-ES' },
   }),
@@ -89,6 +97,15 @@ vi.mock('../../firebase', () => ({
   OperationType: { CREATE: 'create', UPDATE: 'update', DELETE: 'delete', LIST: 'list', GET: 'get', WRITE: 'write' },
   serverTimestamp: () => ({ _type: 'serverTimestamp' }),
   logAnalyticsEvent: vi.fn(),
+}));
+
+vi.mock('../../hooks/useComments', () => ({
+  useComments: () => ({
+    comments: [],
+    loading: false,
+    addComment: vi.fn(),
+    deleteComment: vi.fn(),
+  }),
 }));
 
 beforeEach(() => {
@@ -362,10 +379,13 @@ describe('AnchorView owner management for expired notes', () => {
     expect(screen.getByText('Nota activa cercana')).toBeInTheDocument();
     expect(screen.queryByText('Búsqueda laboral finalizada')).not.toBeInTheDocument();
 
-    // Switch to Mis notas tab -> owner sees expired note even outside radius with Vencida badge & Renovar button
+    // Switch to Mis notas tab -> owner sees expired note even outside radius with Vencida badge & Renovar button, without expiration date
     fireEvent.click(screen.getByRole('tab', { name: /Mis notas/i }));
     expect(screen.getByText('Búsqueda laboral finalizada')).toBeInTheDocument();
     expect(screen.getByText('Vencida')).toBeInTheDocument();
+    expect(screen.queryByText(/Venció el/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Visible hasta/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/dic/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Renovar/i }));
     expect(onEdit).toHaveBeenCalledWith(
@@ -375,5 +395,79 @@ describe('AnchorView owner management for expired notes', () => {
         expiresAt: ownerExpiredNote.expiresAt,
       })
     );
+  });
+
+  it('hides expiration date in AnchorView active notes, ClusterNotesSheet, CommentsView, and AdminNotesManager', () => {
+    const expiringNote: Note = {
+      id: 'expiring-note-1',
+      type: 'text',
+      content: 'Evento con vencimiento oculto',
+      contentFormat: 'plain',
+      location: { lat: -34.9011, lng: -56.1645 },
+      authorId: 'other-user',
+      authorName: 'Organizador',
+      privacy: 'public',
+      createdAt: Timestamp.fromMillis(Date.UTC(2026, 1, 1)),
+      expiresAt: Timestamp.fromDate(new Date('2099-12-21T02:59:59.999Z')),
+    };
+
+    const { unmount: unmountAnchor } = render(
+      <AnchorView
+        notes={[expiringNote]}
+        myNotes={[]}
+        userLocation={{ lat: -34.9011, lng: -56.1645 }}
+        user={{ uid: 'owner-1', displayName: 'Test Explorer' } as never}
+        setEditingNote={vi.fn()}
+        onFocusNote={vi.fn()}
+        copyToClipboard={vi.fn()}
+        copyStatus={null}
+        onGenerateQRCode={vi.fn()}
+        onShowComments={vi.fn()}
+        onReportNote={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Evento con vencimiento oculto')).toBeInTheDocument();
+    expect(screen.queryByText(/Visible hasta/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2099/)).not.toBeInTheDocument();
+    unmountAnchor();
+
+    const { unmount: unmountCluster } = render(
+      <ClusterNotesSheet
+        isOpen={true}
+        notes={[expiringNote]}
+        user={null}
+        onSelectNote={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Evento con vencimiento oculto')).toBeInTheDocument();
+    expect(screen.queryByText(/Visible/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2099/)).not.toBeInTheDocument();
+    unmountCluster();
+
+    const { unmount: unmountComments } = render(
+      <CommentsView
+        note={expiringNote}
+        isOpen={true}
+        user={null}
+        onClose={vi.fn()}
+        onReportComment={vi.fn()}
+        onReportNote={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Evento con vencimiento oculto')).toBeInTheDocument();
+    expect(screen.queryByText(/Visible hasta/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2099/)).not.toBeInTheDocument();
+    unmountComments();
+
+    render(
+      <AdminNotesManager
+        notes={[expiringNote]}
+        loading={false}
+        error={null}
+      />
+    );
+    expect(screen.getByText('Evento con vencimiento oculto')).toBeInTheDocument();
+    expect(screen.queryByText(/2099/)).not.toBeInTheDocument();
   });
 });

@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle, Calendar } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
 import { SpeechButton } from './SpeechButton';
 import { RichTextViewer } from './RichTextViewer';
 import { markdownToPlainText } from '../lib/richText';
-import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
+import { isNoteExpired } from '../lib/expiration';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -40,7 +40,7 @@ export const AnchorView = ({
   onShowComments,
   onReportNote
 }: AnchorViewProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { flags } = useFeatureFlags();
   const [activeTab, setActiveTab] = useState<'nearby' | 'my_notes'>('nearby');
   const [radius, setRadius] = useState<number>(1000); // meters
@@ -197,9 +197,6 @@ export const AnchorView = ({
           {filteredNotes.length > 0 ? (
             filteredNotes.map((note) => {
               const expired = isNoteExpired(note);
-              const formattedExpiration = note.expiresAt
-                ? formatExpirationDate(note.expiresAt, i18n.language)
-                : null;
               const createdAtMs =
                 note.createdAt && typeof note.createdAt.toMillis === 'function'
                   ? note.createdAt.toMillis()
@@ -265,19 +262,6 @@ export const AnchorView = ({
                             <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold">
                               <Globe className="w-2.5 h-2.5" />
                               {t('creator.public')}
-                            </div>
-                          )}
-
-                          {formattedExpiration && (
-                            <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              expired ? 'bg-amber-100/80 text-amber-800' : 'bg-stone-100 text-stone-600'
-                            }`}>
-                              <Calendar className="w-2.5 h-2.5" />
-                              <span>
-                                {expired
-                                  ? `${t('expiration.expired_on', 'Venció el')} ${formattedExpiration}`
-                                  : `${t('expiration.visible_until_short', 'Visible hasta')} ${formattedExpiration}`}
-                              </span>
                             </div>
                           )}
                         </div>

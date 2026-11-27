@@ -11,7 +11,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db, logAnalyticsEvent } from '../firebase';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { canUserAccessNote } from '../lib/notesQuery';
-import { formatExpirationDate, isNoteExpired } from '../lib/expiration';
+import { isNoteExpired } from '../lib/expiration';
 
 interface QRNotesViewProps {
   notes: Note[];
@@ -32,7 +32,7 @@ export const QRNotesView = ({
   onShowComments,
   onReportNote
 }: QRNotesViewProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { flags } = useFeatureFlags();
   const [scannedNote, setScannedNote] = useState<Note | null>(null);
   const [isScanning, setIsScanning] = useState(true);
@@ -337,8 +337,6 @@ export const QRNotesView = ({
                   <span>
                     {isNoteExpired(scannedNote)
                       ? t('expiration.expired_badge', 'Vencida')
-                      : scannedNote.expiresAt
-                      ? `${t('expiration.visible_until_short', 'Visible hasta')} ${formatExpirationDate(scannedNote.expiresAt, i18n.language)}`
                       : scannedNote.createdAt?.toDate
                       ? new Date(scannedNote.createdAt.toDate()).toLocaleDateString()
                       : 'Recent'}

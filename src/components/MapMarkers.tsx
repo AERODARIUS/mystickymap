@@ -15,7 +15,6 @@ import {
   Link,
   MessageSquare,
   AlertTriangle,
-  Calendar,
   Layers,
   ArrowLeft,
 } from 'lucide-react';
@@ -23,7 +22,6 @@ import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useMapViewport } from '../hooks/useMapViewport';
-import { formatExpirationDate } from '../lib/expiration';
 import { getPlainTextExcerpt } from '../lib/richText';
 import {
   clusterNotes,
@@ -91,7 +89,7 @@ export const MapMarkers = ({
   onShowComments,
   onReportNote,
 }: MapMarkersProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { flags } = useFeatureFlags();
   const map = useMap();
   const viewport = useMapViewport(15);
@@ -505,22 +503,11 @@ export const MapMarkers = ({
               />
             </div>
             <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-stone-100/50">
-              <div className="space-y-0.5">
-                <p className="text-[10px] text-stone-400">
-                  {resolvedSelectedNote.createdAt?.toDate
-                    ? resolvedSelectedNote.createdAt.toDate().toLocaleDateString()
-                    : '—'}
-                </p>
-                {resolvedSelectedNote.expiresAt && (
-                  <p className="text-[10px] text-stone-500 font-medium flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" />
-                    <span>
-                      {t('expiration.visible_until_short', 'Visible hasta')}{' '}
-                      {formatExpirationDate(resolvedSelectedNote.expiresAt, i18n.language)}
-                    </span>
-                  </p>
-                )}
-              </div>
+              <p className="text-[10px] text-stone-400">
+                {resolvedSelectedNote.createdAt?.toDate
+                  ? resolvedSelectedNote.createdAt.toDate().toLocaleDateString()
+                  : '—'}
+              </p>
               {resolvedSelectedNote.language && (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded text-[9px] font-bold text-stone-500 uppercase tracking-wider shrink-0">
                   <Languages className="w-2.5 h-2.5" />

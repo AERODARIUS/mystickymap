@@ -595,6 +595,7 @@ describe('MapMarkers clustering, coincident coordinates, and InfoWindow preserva
       contentFormat: 'markdown',
       emoji: undefined,
       color: undefined,
+      expiresAt: Timestamp.fromDate(new Date('2099-12-21T02:59:59.999Z')),
     });
 
     const onShowComments = vi.fn();
@@ -632,6 +633,8 @@ describe('MapMarkers clustering, coincident coordinates, and InfoWindow preserva
     const infoWindow = screen.getByTestId('info-window');
     expect(within(infoWindow).getByRole('heading', { name: 'Titulo Markdown' })).toBeInTheDocument();
     expect(within(infoWindow).getByText('en negrita').tagName).toBe('STRONG');
+    expect(within(infoWindow).queryByText(/Visible hasta/i)).not.toBeInTheDocument();
+    expect(within(infoWindow).queryByText(/2099/)).not.toBeInTheDocument();
 
     fireEvent.click(within(infoWindow).getByTitle('Responder'));
     expect(onShowComments).toHaveBeenCalledWith(ownedNote);
