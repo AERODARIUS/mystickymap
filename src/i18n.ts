@@ -13,6 +13,8 @@ const resources = {
         change_view: "Change View",
         login_prompt: "To create notes, you must login.",
         login: "Login",
+        logout: "Logout",
+        hide_login_prompt: "Hide login banner",
         drop_note: "Drop a Note"
       },
       creator: {
@@ -155,6 +157,8 @@ const resources = {
         change_view: "Cambiar Vista",
         login_prompt: "Para crear notas, debes iniciar sesión.",
         login: "Iniciar Sesión",
+        logout: "Cerrar Sesión",
+        hide_login_prompt: "Ocultar aviso de inicio de sesión",
         drop_note: "Dejar una Nota"
       },
       creator: {
@@ -297,6 +301,8 @@ const resources = {
         change_view: "Alterar Vista",
         login_prompt: "Para criar notas, você deve fazer login.",
         login: "Entrar",
+        logout: "Sair",
+        hide_login_prompt: "Ocultar aviso de login",
         drop_note: "Deixar uma Nota"
       },
       creator: {
@@ -426,6 +432,8 @@ const resources = {
         change_view: "Changer de Vue",
         login_prompt: "Pour créer des notes, vous devez vous connecter.",
         login: "Connexion",
+        logout: "Déconnexion",
+        hide_login_prompt: "Masquer la bannière de connexion",
         drop_note: "Déposer une Note"
       },
       creator: {

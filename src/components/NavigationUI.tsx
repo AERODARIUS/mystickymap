@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Map, Locate, LocateOff, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield, Cookie } from 'lucide-react';
+import { Camera, Map, Locate, LocateOff, LogIn, LogOut, Compass, Plus, X, Notebook, ChevronDown, QrCode, Shield, Cookie } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
@@ -88,6 +88,22 @@ export const NavigationUI = ({
   const { flags } = useFeatureFlags();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLocationDeniedPrompt, setShowLocationDeniedPrompt] = useState(false);
+  const [isLoginPromptHidden, setIsLoginPromptHidden] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage.getItem('spotheon_login_banner_hidden') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleHideLoginPrompt = () => {
+    setIsLoginPromptHidden(true);
+    try {
+      window.localStorage.setItem('spotheon_login_banner_hidden', 'true');
+    } catch {
+      // Ignore storage errors in restricted environments
+    }
+  };
 
   const viewOptions = useMemo(() => {
     const options: Array<{ id: 'map' | 'ar' | 'anchor' | 'qr'; label: string; icon: React.ElementType }> = [
@@ -192,14 +208,29 @@ export const NavigationUI = ({
               <Shield className="w-5 h-5" />
             </button>
           )}
-          {user && (
+          {user ? (
             <button 
+              type="button"
               onClick={handleLogout}
               className="p-3 bg-white text-stone-600 rounded-2xl shadow-lg border border-stone-100 hover:bg-stone-50 transition-all"
+              title={t('nav.logout')}
+              aria-label={t('nav.logout')}
             >
               <LogOut className="w-5 h-5" />
             </button>
-          )}
+          ) : isLoginPromptHidden ? (
+            <button
+              type="button"
+              onClick={handleLogin}
+              data-testid="top-right-login-button"
+              className="px-3.5 py-3 bg-white text-stone-700 rounded-2xl shadow-lg border border-stone-100 hover:bg-stone-50 transition-all font-bold flex items-center gap-2"
+              title={t('nav.login')}
+              aria-label={t('nav.login')}
+            >
+              <LogIn className="w-5 h-5 text-[#0d9488]" />
+              <span className="text-xs font-black uppercase tracking-tight">{t('nav.login')}</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -230,28 +261,48 @@ export const NavigationUI = ({
       </AnimatePresence>
 
       {/* Login Prompt */}
-      {!user && (
-        <div className="absolute top-24 left-6 right-6 flex justify-center pointer-events-none">
-          <motion.div 
+      <AnimatePresence>
+        {!user && !isLoginPromptHidden && (
+          <motion.div
+            key="login-prompt-banner"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-sm w-full bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-lg pointer-events-auto"
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-24 left-6 right-6 flex justify-center pointer-events-none"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-full text-amber-600">
-                <Compass className="w-4 h-4" />
-              </div>
-              <p className="text-xs font-semibold text-amber-900">{t('nav.login_prompt')}</p>
-            </div>
-            <button 
-              onClick={handleLogin}
-              className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-amber-700 transition-colors"
+            <div
+              data-testid="login-prompt-banner"
+              className="max-w-sm w-full bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-2 shadow-lg pointer-events-auto"
             >
-              {t('nav.login')}
-            </button>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-amber-100 rounded-full text-amber-600 shrink-0">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <p className="text-xs font-semibold text-amber-900">{t('nav.login_prompt')}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button 
+                  type="button"
+                  onClick={handleLogin}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-amber-700 transition-colors"
+                >
+                  {t('nav.login')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHideLoginPrompt}
+                  data-testid="hide-login-prompt-button"
+                  className="p-1.5 text-amber-700/70 hover:text-amber-900 hover:bg-amber-100 rounded-lg transition-colors"
+                  title={t('nav.hide_login_prompt')}
+                  aria-label={t('nav.hide_login_prompt')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Bottom Controls / Note Creator */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-6 pointer-events-none z-40">
