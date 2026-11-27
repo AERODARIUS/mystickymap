@@ -2,10 +2,14 @@ import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { deleteField, Timestamp } from 'firebase/firestore';
 import { AdminCsvImporter } from '../AdminCsvImporter';
+import { AdminNotesManager } from '../AdminNotesManager';
+import type { Note } from '../../types';
 import type { User } from 'firebase/auth';
 
 const mockBatchSet = vi.fn();
+const mockBatchUpdate = vi.fn();
 const mockBatchCommit = vi.fn(async () => undefined);
 const mockLogAnalytics = vi.fn();
 
@@ -21,6 +25,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     serverTimestamp: () => ({ _type: 'serverTimestamp' }),
     writeBatch: vi.fn(() => ({
       set: mockBatchSet,
+      update: mockBatchUpdate,
       commit: mockBatchCommit,
     })),
   };
@@ -92,9 +97,131 @@ describe('AdminCsvImporter rich-text UI, preview toggle, and batch writes', () =
       contentFormat: 'markdown',
       authorId: 'admin-uid',
     });
+    expect(mockBatchSet.mock.calls[0][1]).not.toHaveProperty('group');
     expect(mockBatchSet.mock.calls[1][1]).toMatchObject({
       contentFormat: 'plain',
       content: 'Texto *literal* #hashtag',
     });
+  });
+
+  it('supports batch-level GroupCombobox, per-row CSV group, and clearing existing note group via deleteField()', async () => {
+    const existingNotes: Note[] = [
+      {
+        id: 'existing-1',
+        type: 'text',
+        content: 'Existing grouped note',
+        contentFormat: 'plain',
+        location: { lat: -34.9011, lng: -56.1645 },
+        authorId: 'orig-author',
+        authorName: 'Original',
+        privacy: 'public',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        group: 'Events',
+      },
+    ];
+
+    render(<AdminCsvImporter user={verifiedUser} existingNotes={existingNotes} notesLoading={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pegar texto CSV' }));
+
+    const csvText = [
+      'id,content,lat,lng,group',
+      'existing-1,"Updated existing note",-34.9011,-56.1645,""',
+      'new-custom,"New note with fallback group",-34.902,-56.165,""',
+      'new-explicit,"New note with explicit group",-34.903,-56.166,"Tourism"',
+    ].join('\n');
+
+    fireEvent.change(screen.getByPlaceholderText(/contentFormat/i), { target: { value: csvText } });
+
+    // Uncheck skipDuplicates so existing-1 becomes an update
+    const skipCheckbox = screen.getByRole('checkbox');
+    fireEvent.click(skipCheckbox);
+
+    // Assign a batch default group via GroupCombobox
+    const batchGroupInput = screen.getByRole('combobox', { name: /group por defecto/i });
+    fireEvent.change(batchGroupInput, { target: { value: 'Restaurants' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Importar 3 notas/i }));
+
+    await waitFor(() => {
+      expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+    });
+
+    // Existing row cleared group using deleteField()
+    expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
+    expect(mockBatchUpdate.mock.calls[0][1]).toMatchObject({
+      content: 'Updated existing note',
+      group: deleteField(),
+    });
+
+    // New rows got batch default ('Restaurants') or explicit ('Tourism')
+    expect(mockBatchSet).toHaveBeenCalledTimes(2);
+    expect(mockBatchSet.mock.calls[0][1]).toMatchObject({
+      content: 'New note with fallback group',
+      group: 'Restaurants',
+    });
+    expect(mockBatchSet.mock.calls[1][1]).toMatchObject({
+      content: 'New note with explicit group',
+      group: 'Tourism',
+    });
+  });
+
+  it('exports only currently filtered notes from AdminNotesManager as CSV', () => {
+    const createObjectUrlSpy = vi.fn(() => 'blob:mock-url');
+    const revokeObjectUrlSpy = vi.fn();
+    const clickSpy = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: createObjectUrlSpy,
+      revokeObjectURL: revokeObjectUrlSpy,
+    });
+    const origCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = origCreateElement(tagName);
+      if (tagName === 'a') {
+        vi.spyOn(el as HTMLAnchorElement, 'click').mockImplementation(clickSpy);
+      }
+      return el;
+    });
+
+    const notes: Note[] = [
+      {
+        id: 'n1',
+        type: 'text',
+        content: 'Public event note',
+        contentFormat: 'plain',
+        location: { lat: -34.9, lng: -56.2 },
+        authorId: 'u1',
+        authorName: 'Alice',
+        privacy: 'public',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+        group: 'Events',
+      },
+      {
+        id: 'n2',
+        type: 'text',
+        content: 'Private note',
+        contentFormat: 'plain',
+        location: { lat: -34.91, lng: -56.21 },
+        authorId: 'u2',
+        authorName: 'Bob',
+        privacy: 'private',
+        createdAt: Timestamp.fromMillis(1_700_000_000_000),
+      },
+    ];
+
+    render(<AdminNotesManager notes={notes} loading={false} error={null} />);
+
+    // Filter to private only
+    fireEvent.change(screen.getByLabelText('Filtrar por privacidad'), {
+      target: { value: 'private' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Exportar CSV/i }));
+    expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(mockLogAnalytics).toHaveBeenCalledWith('admin_notes_csv_export', { exported_count: 1 });
+
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 });

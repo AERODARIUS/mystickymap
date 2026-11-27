@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { ContentFormat, Note, NotePrivacy } from '../types';
 import { Logo } from './Logo';
+import { GroupFilter } from './GroupFilter';
 
 const NoteCreator = lazy(() => import('./NoteCreator').then((m) => ({ default: m.NoteCreator })));
 
@@ -26,6 +27,8 @@ interface NavigationUIProps {
   draftPrivacy: NotePrivacy;
   draftHasExpiration?: boolean;
   draftExpirationDate?: string;
+  draftGroup?: string;
+  availableGroups?: string[];
   setView: (view: 'map' | 'ar' | 'anchor' | 'qr') => void;
   setIsTrackingLocation: (tracking: boolean) => void;
   onStartCreate: () => void;
@@ -38,6 +41,7 @@ interface NavigationUIProps {
   setDraftPrivacy: (privacy: NotePrivacy) => void;
   setDraftHasExpiration?: (hasExpiration: boolean) => void;
   setDraftExpirationDate?: (date: string) => void;
+  setDraftGroup?: (group: string) => void;
   onProceedToPlacement: () => void;
   handleLogin: () => void;
   handleLogout: () => void;
@@ -64,6 +68,8 @@ export const NavigationUI = ({
   draftPrivacy,
   draftHasExpiration,
   draftExpirationDate,
+  draftGroup,
+  availableGroups,
   setView,
   setIsTrackingLocation,
   onStartCreate,
@@ -76,6 +82,7 @@ export const NavigationUI = ({
   setDraftPrivacy,
   setDraftHasExpiration,
   setDraftExpirationDate,
+  setDraftGroup,
   onProceedToPlacement,
   handleLogin,
   handleLogout,
@@ -196,6 +203,10 @@ export const NavigationUI = ({
           >
             {isTrackingLocation ? <Locate className="w-5 h-5" /> : <LocateOff className="w-5 h-5" />}
           </button>
+
+          {view === 'map' && !isCreating && !editingNote && (
+            <GroupFilter variant="map" />
+          )}
         </div>
 
         <div className="flex gap-2 pointer-events-auto">
@@ -352,6 +363,9 @@ export const NavigationUI = ({
                   setHasExpiration={setDraftHasExpiration}
                   expirationDate={draftExpirationDate}
                   setExpirationDate={setDraftExpirationDate}
+                  group={draftGroup}
+                  setGroup={setDraftGroup}
+                  availableGroups={availableGroups}
                   onProceedToPlacement={onProceedToPlacement}
                 />
               </Suspense>

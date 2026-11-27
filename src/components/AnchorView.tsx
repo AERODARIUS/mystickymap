@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Search, MapPin, Navigation, Clock, User as UserIcon, Pencil, Trash2, Share2, Check, Languages, QrCode, Lock, Globe, Link, MessageSquare, AlertTriangle, Folder, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Note, calculateDistance, SUPPORTED_LANGUAGES } from '../types';
 import { User } from 'firebase/auth';
@@ -8,6 +8,9 @@ import { SpeechButton } from './SpeechButton';
 import { RichTextViewer } from './RichTextViewer';
 import { markdownToPlainText } from '../lib/richText';
 import { isNoteExpired } from '../lib/expiration';
+import { normalizeGroupName } from '../lib/groups';
+import { useGroupFilter } from '../context/GroupFilterContext';
+import { GroupFilter } from './GroupFilter';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { db, handleFirestoreError, OperationType, logAnalyticsEvent } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -42,6 +45,7 @@ export const AnchorView = ({
 }: AnchorViewProps) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
+  const { filterNotes, isFilterActive, resetFilters } = useGroupFilter();
   const [activeTab, setActiveTab] = useState<'nearby' | 'my_notes'>('nearby');
   const [radius, setRadius] = useState<number>(1000); // meters
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,7 +78,8 @@ export const AnchorView = ({
 
   const filteredNotes = useMemo(() => {
     const source = effectiveTab === 'my_notes' ? myNotes : notes;
-    let result = source.map(note => ({
+    const groupFiltered = filterNotes(source);
+    let result = groupFiltered.map(note => ({
       ...note,
       distance: userLocation 
         ? calculateDistance(userLocation.lat, userLocation.lng, note.location.lat, note.location.lng)
@@ -103,7 +108,7 @@ export const AnchorView = ({
     }
 
     return result;
-  }, [effectiveTab, myNotes, notes, userLocation, radius, searchTerm]);
+  }, [effectiveTab, myNotes, notes, filterNotes, userLocation, radius, searchTerm]);
 
   return (
     <div className="h-full bg-stone-50 overflow-y-auto px-6 pt-24 pb-32">
@@ -189,6 +194,10 @@ export const AnchorView = ({
                 />
               </div>
             )}
+
+            <div className="pt-2 border-t border-stone-50">
+              <GroupFilter variant="inline" />
+            </div>
           </div>
         </div>
 
@@ -197,6 +206,7 @@ export const AnchorView = ({
           {filteredNotes.length > 0 ? (
             filteredNotes.map((note) => {
               const expired = isNoteExpired(note);
+              const noteGroup = normalizeGroupName(note.group);
               const createdAtMs =
                 note.createdAt && typeof note.createdAt.toMillis === 'function'
                   ? note.createdAt.toMillis()
@@ -263,6 +273,15 @@ export const AnchorView = ({
                               <Globe className="w-2.5 h-2.5" />
                               {t('creator.public')}
                             </div>
+                          )}
+                          {noteGroup && (
+                            <span
+                              data-testid={`anchor-note-group-${note.id}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-teal-50 text-[#0d9488] border border-teal-100 text-[10px] font-bold"
+                            >
+                              <Folder className="w-3 h-3 shrink-0" aria-hidden="true" />
+                              <span>{noteGroup}</span>
+                            </span>
                           )}
                         </div>
                         {note.type === 'text' ? (
@@ -382,9 +401,28 @@ export const AnchorView = ({
               <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto">
                 <MapPin className="w-8 h-8 text-stone-300" />
               </div>
-              <p className="text-stone-400 font-medium italic">
-                {effectiveTab === 'my_notes' ? t('anchor.no_my_notes') : t('anchor.no_notes')}
-              </p>
+              {isFilterActive ? (
+                <div className="space-y-2 max-w-sm mx-auto">
+                  <p className="text-stone-700 font-bold text-sm">
+                    {t('groups.empty_filtered_title', 'No notes match the selected groups')}
+                  </p>
+                  <p className="text-stone-400 text-xs">
+                    {t('groups.empty_filtered_desc', 'Adjust your group filters or reset them to view notes again.')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#081e2b] hover:bg-[#0e2a38] text-white text-xs font-bold transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-[#00a88f]" aria-hidden="true" />
+                    <span>{t('groups.reset', 'Reset')}</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-stone-400 font-medium italic">
+                  {effectiveTab === 'my_notes' ? t('anchor.no_my_notes') : t('anchor.no_notes')}
+                </p>
+              )}
             </div>
           )}
         </div>

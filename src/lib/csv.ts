@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import {
   ContentFormat,
+  MAX_GROUP_LENGTH,
   MAX_NOTE_LENGTH,
   MAX_NOTE_STORAGE_LENGTH,
   Note,
@@ -9,6 +10,12 @@ import {
 import { countVisibleCharacters } from './richText';
 import { getContentVisibleText, inspectMarkdownContent } from './tiptapMarkdown';
 import { calendarDateToUtcEndOfDay, parseCalendarDate } from './expiration';
+import {
+  extractAvailableGroups,
+  normalizeGroupName,
+  resolveGroupSpelling,
+  validateGroupName,
+} from './groups';
 
 export type SpotheonImportField =
   | 'id'
@@ -25,7 +32,8 @@ export type SpotheonImportField =
   | 'language'
   | 'authorName'
   | 'updatedAt'
-  | 'expiresAt';
+  | 'expiresAt'
+  | 'group';
 
 export type CsvFieldMapping = Record<SpotheonImportField, string>;
 
@@ -37,6 +45,7 @@ export interface ImportDefaults {
   emoji: string;
   language: string;
   authorName: string;
+  group?: string;
   maxContentLength: 1000 | 2000 | 4000;
   skipDuplicates: boolean;
   batchSize: number;
@@ -57,11 +66,15 @@ export interface ValidatedNotePayload {
   moderationState: 'visible';
   expiresAt: Timestamp | null;
   customUpdatedAt?: Timestamp;
+  group?: string;
+  clearGroup?: boolean;
 }
 
 export interface PreparedImportRow {
   rowIndex: number; // 1-based data row index
   sourceId?: string;
+  isExistingUpdate?: boolean;
+  groupDisplay?: string;
   contentFormat: ContentFormat;
   previewContent: string;
   visibleLength: number;
@@ -93,6 +106,7 @@ export interface ImportManifestItem {
   updatedAtIso: string;
   status: 'created' | 'failed';
   error?: string;
+  group?: string;
 }
 
 export const SPOTHEON_FIELD_DEFS: Array<{
@@ -124,6 +138,11 @@ export const SPOTHEON_FIELD_DEFS: Array<{
   { field: 'authorName', label: 'authorName', hint: 'Nombre visible del autor (máx. 100 caracteres)' },
   { field: 'updatedAt', label: 'updatedAt', hint: 'Fecha ISO/RFC/YYYY-MM-DD de actualización' },
   { field: 'expiresAt', label: 'expiresAt (opcional)', hint: 'Fecha futura YYYY-MM-DD (America/Montevideo) o ISO 8601' },
+  {
+    field: 'group',
+    label: 'group (opcional)',
+    hint: `Grupo opcional (máx. ${MAX_GROUP_LENGTH} caracteres; vacío = sin grupo)`,
+  },
   { field: 'id', label: 'id (opcional)', hint: 'ID estable [a-zA-Z0-9_-], máx. 128 caracteres' },
 ];
 
@@ -143,6 +162,7 @@ const HEADER_SYNONYMS: Record<SpotheonImportField, string[]> = {
   authorName: ['authorname', 'author_name', 'autor', 'author', 'nombre_autor'],
   updatedAt: ['updatedat', 'updated_at', 'fecha_actualizacion', 'actualizado', 'last_modified', 'modified'],
   expiresAt: ['expiresat', 'expires_at', 'fecha_expiracion', 'visible_hasta', 'expiracion', 'vencimiento'],
+  group: ['group', 'grupo', 'category', 'categoria', 'tag', 'etiqueta'],
 };
 
 const VALID_ID_REGEX = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -251,6 +271,7 @@ export function autoMapHeaders(headers: string[]): CsvFieldMapping {
     authorName: '',
     updatedAt: '',
     expiresAt: '',
+    group: '',
   };
 
   const normalizedHeaders = headers.map((h) => ({
@@ -337,11 +358,14 @@ export function validateAndPrepareNotes(
     headerIndex.set(h, idx);
   });
 
-  const existingIds = new Set(existingNotes.map((n) => n.id));
+  const existingById = new Map<string, Note>();
+  const existingIds = new Set<string>();
   const existingExactSignatures = new Set<string>();
   const existingVisibleSignatures = new Set<string>();
 
   for (const n of existingNotes) {
+    existingById.set(n.id, n);
+    existingIds.add(n.id);
     if (n.location && typeof n.location.lat === 'number' && typeof n.location.lng === 'number' && n.content) {
       const fmt: ContentFormat = n.contentFormat === 'markdown' ? 'markdown' : 'plain';
       existingExactSignatures.add(makeExactContentLocationKey(n.location.lat, n.location.lng, n.content, fmt));
@@ -351,6 +375,10 @@ export function validateAndPrepareNotes(
       }
     }
   }
+
+  const knownGroups = extractAvailableGroups(existingNotes);
+  const isGroupColumnMapped = Boolean(mapping.group && headerIndex.has(mapping.group));
+  const batchGroupValidation = validateGroupName(defaults.group ?? '');
 
   const seenCsvIds = new Set<string>();
   const seenCsvExactSignatures = new Set<string>();
@@ -449,6 +477,8 @@ export function validateAndPrepareNotes(
     }
 
     // Stable ID validation & duplicate check
+    let isExistingUpdate = false;
+    let existingNote: Note | undefined;
     if (sourceId) {
       if (!VALID_ID_REGEX.test(sourceId)) {
         errors.push('ID inválido (solo letras, números, "_" o "-", máx. 128 caracteres).');
@@ -478,6 +508,9 @@ export function validateAndPrepareNotes(
           errors: [],
           warnings: [`ID "${sourceId}" duplicado dentro del mismo CSV (omitido).`],
         };
+      } else if (!defaults.skipDuplicates && existingById.has(sourceId)) {
+        isExistingUpdate = true;
+        existingNote = existingById.get(sourceId);
       }
     }
 
@@ -545,7 +578,7 @@ export function validateAndPrepareNotes(
       }
 
       // Ambiguous duplicate check: same location and visible text, but different formatting/syntax
-      if (visibleSig) {
+      if (visibleSig && !isExistingUpdate) {
         if (existingVisibleSignatures.has(visibleSig)) {
           warnings.push(
             'Posible duplicado con distinto formato: ya existe una nota en Firestore en esta ubicación con el mismo texto visible (no se descartó automáticamente).'
@@ -650,10 +683,57 @@ export function validateAndPrepareNotes(
       }
     }
 
+    // 14. Group (optional; follows CSV vs batch precedence and update semantics)
+    const rawCsvGroup = isGroupColumnMapped ? getTrimmedVal(row, 'group') : '';
+    let resolvedGroup: string | undefined;
+    let clearGroup = false;
+    let groupDisplay: string | undefined;
+
+    if (isGroupColumnMapped) {
+      if (rawCsvGroup.length > 0) {
+        const csvGroupValidation = validateGroupName(rawCsvGroup);
+        if (!csvGroupValidation.valid) {
+          errors.push(
+            `group inválido "${rawCsvGroup}" (máx. ${MAX_GROUP_LENGTH} caracteres, sin saltos de línea ni caracteres de control).`
+          );
+        } else {
+          resolvedGroup = resolveGroupSpelling(csvGroupValidation.normalized, knownGroups);
+          groupDisplay = resolvedGroup;
+        }
+      } else if (isExistingUpdate) {
+        // Explicit empty/whitespace cell in mapped CSV group column clears existing group on update
+        clearGroup = true;
+        groupDisplay = undefined;
+      } else if (defaults.group && defaults.group.trim().length > 0) {
+        if (!batchGroupValidation.valid) {
+          errors.push(
+            `group por defecto inválido (máx. ${MAX_GROUP_LENGTH} caracteres, sin saltos de línea ni caracteres de control).`
+          );
+        } else {
+          resolvedGroup = resolveGroupSpelling(batchGroupValidation.normalized, knownGroups);
+          groupDisplay = resolvedGroup;
+        }
+      }
+    } else if (defaults.group && defaults.group.trim().length > 0) {
+      if (!batchGroupValidation.valid) {
+        errors.push(
+          `group por defecto inválido (máx. ${MAX_GROUP_LENGTH} caracteres, sin saltos de línea ni caracteres de control).`
+        );
+      } else {
+        resolvedGroup = resolveGroupSpelling(batchGroupValidation.normalized, knownGroups);
+        groupDisplay = resolvedGroup;
+      }
+    } else if (isExistingUpdate) {
+      // Unmapped CSV column + empty batch default preserves existing note group on update
+      groupDisplay = normalizeGroupName(existingNote?.group);
+    }
+
     if (errors.length > 0 || lat === null || lng === null) {
       return {
         rowIndex,
         sourceId: sourceId || undefined,
+        isExistingUpdate,
+        groupDisplay,
         contentFormat: effectiveFormatForEval,
         previewContent: content || rawContent,
         visibleLength,
@@ -668,6 +748,12 @@ export function validateAndPrepareNotes(
     if (sourceId) seenCsvIds.add(sourceId);
     if (exactSig) seenCsvExactSignatures.add(exactSig);
     if (visibleSig) seenCsvVisibleSignatures.add(visibleSig);
+    if (resolvedGroup) {
+      const resolvedKey = resolvedGroup.toLowerCase();
+      if (!knownGroups.some((g) => g.toLowerCase() === resolvedKey)) {
+        knownGroups.push(resolvedGroup);
+      }
+    }
 
     const payload: ValidatedNotePayload = {
       type: noteType,
@@ -684,11 +770,15 @@ export function validateAndPrepareNotes(
       moderationState: 'visible',
       expiresAt,
       ...(customUpdatedAt ? { customUpdatedAt } : {}),
+      ...(resolvedGroup ? { group: resolvedGroup } : {}),
+      ...(clearGroup ? { clearGroup: true } : {}),
     };
 
     return {
       rowIndex,
       sourceId: sourceId || undefined,
+      isExistingUpdate,
+      groupDisplay,
       contentFormat,
       previewContent: content,
       visibleLength,
@@ -717,13 +807,13 @@ export function validateAndPrepareNotes(
 }
 
 export function buildCsvTemplate(): string {
-  const header = 'id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt';
+  const header = 'id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt,expiresAt,group';
   const row1 =
-    'mvd_accesible_solis,"Teatro Solís — Acceso principal accesible con rampa y ascensor. Fuente: Intendencia de Montevideo (https://catalogodatos.gub.uy/dataset/intendencia-montevideo-espacios-accesibles-de-montevideo1).",plain,-34.907851,-56.201122,text,public,#0d9488,🎭,es-ES,Admin,2026-11-13T12:00:11Z';
+    'mvd_accesible_solis,"Teatro Solís — Acceso principal accesible con rampa y ascensor. Fuente: Intendencia de Montevideo (https://catalogodatos.gub.uy/dataset/intendencia-montevideo-espacios-accesibles-de-montevideo1).",plain,-34.907851,-56.201122,text,public,#0d9488,🎭,es-ES,Admin,2026-11-13T12:00:11Z,,Accessible places';
   const row2 =
-    'mvd_markdown_zitarrosa,"## Sala Zitarrosa\n\nAcceso principal por **Av. 18 de Julio 1012**.\n\n- Rampa en entrada principal\n- Baños accesibles",markdown,-34.906123,-56.193456,text,public,#0d9488,🎵,es-ES,Admin,2026-10-06T16:21:37Z';
+    'mvd_markdown_zitarrosa,"## Sala Zitarrosa\n\nAcceso principal por **Av. 18 de Julio 1012**.\n\n- Rampa en entrada principal\n- Baños accesibles",markdown,-34.906123,-56.193456,text,public,#0d9488,🎵,es-ES,Admin,2026-10-06T16:21:37Z,,Events';
   const row3 =
-    'mvd_markdown_rambla,"### Mirador de la Rambla\n\nEspacio abierto frente al Río de la Plata ideal para recorrer al atardecer.\n\n> Recomendado llevar abrigo en días ventosos.\n\n[Información turística de Montevideo](https://montevideo.gub.uy/)",markdown,-34.914521,-56.165214,text,public,#3b82f6,🌊,es-ES,Admin,2026-11-10T15:00:00Z';
+    'mvd_markdown_rambla,"### Mirador de la Rambla\n\nEspacio abierto frente al Río de la Plata ideal para recorrer al atardecer.\n\n> Recomendado llevar abrigo en días ventosos.\n\n[Información turística de Montevideo](https://montevideo.gub.uy/)",markdown,-34.914521,-56.165214,text,public,#3b82f6,🌊,es-ES,Admin,2026-11-10T15:00:00Z,,Tourism';
   return `${header}\n${row1}\n${row2}\n${row3}\n`;
 }
 
@@ -734,8 +824,43 @@ function escapeCsvCell(value: string): string {
   return value;
 }
 
+export function buildNotesExportCsv(notes: ReadonlyArray<Note>): string {
+  const header = 'id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt,expiresAt,group';
+  const lines = notes.map((note) => {
+    const updatedAtIso =
+      note.updatedAt && typeof note.updatedAt.toDate === 'function'
+        ? note.updatedAt.toDate().toISOString()
+        : note.createdAt && typeof note.createdAt.toDate === 'function'
+          ? note.createdAt.toDate().toISOString()
+          : '';
+    const expiresAtIso =
+      note.expiresAt && typeof note.expiresAt.toDate === 'function'
+        ? note.expiresAt.toDate().toISOString()
+        : '';
+
+    return [
+      escapeCsvCell(note.id),
+      escapeCsvCell(note.content || ''),
+      escapeCsvCell(note.contentFormat || 'plain'),
+      note.location?.lat !== undefined ? String(note.location.lat) : '',
+      note.location?.lng !== undefined ? String(note.location.lng) : '',
+      escapeCsvCell(note.type || 'text'),
+      escapeCsvCell(note.privacy || 'public'),
+      escapeCsvCell(note.color || ''),
+      escapeCsvCell(note.emoji || ''),
+      escapeCsvCell(note.language || ''),
+      escapeCsvCell(note.authorName || ''),
+      escapeCsvCell(updatedAtIso),
+      escapeCsvCell(expiresAtIso),
+      escapeCsvCell(normalizeGroupName(note.group) || ''),
+    ].join(',');
+  });
+
+  return lines.length > 0 ? `${header}\n${lines.join('\n')}\n` : `${header}\n`;
+}
+
 export function buildManifestCsv(items: ImportManifestItem[]): string {
-  const header = 'rowIndex,sourceId,firestoreNoteId,batchNumber,contentFormat,lat,lng,privacy,updatedAtIso,status,error';
+  const header = 'rowIndex,sourceId,firestoreNoteId,batchNumber,contentFormat,lat,lng,privacy,updatedAtIso,status,error,group';
   const lines = items.map((item) =>
     [
       String(item.rowIndex),
@@ -749,6 +874,7 @@ export function buildManifestCsv(items: ImportManifestItem[]): string {
       escapeCsvCell(item.updatedAtIso),
       escapeCsvCell(item.status),
       escapeCsvCell(item.error || ''),
+      escapeCsvCell(item.group || ''),
     ].join(',')
   );
   return `${header}\n${lines.join('\n')}\n`;

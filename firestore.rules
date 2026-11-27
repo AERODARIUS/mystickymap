@@ -53,8 +53,8 @@ service cloud.firestore {
     
     function isValidNote(data) {
       return data.keys().hasAll(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'privacy']) &&
-             data.keys().hasOnly(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'contentFormat', 'privacy', 'audioUrl', 'updatedAt', 'color', 'emoji', 'language', 'moderationState', 'expiresAt']) &&
-             data.keys().size() <= 15 && 
+             data.keys().hasOnly(['type', 'location', 'authorId', 'createdAt', 'authorName', 'content', 'contentFormat', 'privacy', 'audioUrl', 'updatedAt', 'color', 'emoji', 'language', 'group', 'moderationState', 'expiresAt']) &&
+             data.keys().size() <= 16 && 
              data.type in ['text', 'audio'] &&
              data.authorId is string && (data.authorId == request.auth.uid || isAdmin()) &&
              data.authorName is string && data.authorName.size() <= 100 &&
@@ -68,6 +68,7 @@ service cloud.firestore {
              (!('color' in data) || (data.color is string && data.color.matches("^#[0-9a-fA-F]{6}$"))) &&
              (!('emoji' in data) || (data.emoji is string && data.emoji.size() <= 10)) &&
              (!('language' in data) || (data.language is string && data.language.size() <= 20)) &&
+             (!('group' in data) || (data.group is string && data.group.size() >= 1 && data.group.size() <= 60 && data.group.matches('^\\S(.*\\S)?$'))) &&
              (!('moderationState' in data) || (data.moderationState is string && data.moderationState in ['visible', 'pending_review', 'removed'])) &&
              (!('expiresAt' in data) || data.expiresAt == null || data.expiresAt is timestamp);
     }
@@ -145,7 +146,7 @@ service cloud.firestore {
                           incoming().expiresAt == null ||
                           (('expiresAt' in existing()) && incoming().expiresAt == existing().expiresAt) ||
                           incoming().expiresAt > request.time) &&
-                         affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy', 'expiresAt'])
+                         affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'group', 'authorName', 'privacy', 'expiresAt'])
                        ));
       
       allow delete: if isValidId(noteId) && (isOwner(existing().authorId) || isAdmin());

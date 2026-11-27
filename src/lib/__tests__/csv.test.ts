@@ -6,6 +6,7 @@ import {
   autoMapHeaders,
   buildCsvTemplate,
   buildManifestCsv,
+  buildNotesExportCsv,
   parseCsv,
   validateAndPrepareNotes,
   type ImportDefaults,
@@ -413,8 +414,11 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
       'language',
       'authorName',
       'updatedAt',
+      'expiresAt',
+      'group',
     ]);
     expect(mapping.contentFormat).toBe('contentFormat');
+    expect(mapping.group).toBe('group');
 
     const res = validateAndPrepareNotes(
       parsed.rows,
@@ -429,10 +433,13 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
     expect(res.validCount).toBe(3);
     expect(res.errorCount).toBe(0);
     expect(res.rows[0].payload?.contentFormat).toBe('plain');
+    expect(res.rows[0].payload?.group).toBe('Accessible places');
     expect(res.rows[1].payload?.contentFormat).toBe('markdown');
+    expect(res.rows[1].payload?.group).toBe('Events');
     expect(res.rows[2].payload?.contentFormat).toBe('markdown');
+    expect(res.rows[2].payload?.group).toBe('Tourism');
 
-    // Verify Firestore document keys satisfy isValidNote() allowlist & count <= 15
+    // Verify Firestore document keys satisfy isValidNote() allowlist & count <= 16
     const allowedFirestoreKeys = new Set([
       'type',
       'location',
@@ -449,16 +456,19 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
       'language',
       'moderationState',
       'expiresAt',
+      'group',
     ]);
     for (const row of res.rows) {
-      const { customUpdatedAt, ...rest } = row.payload!;
+      const payloadCopy: Record<string, unknown> = { ...row.payload! };
+      delete payloadCopy.customUpdatedAt;
+      delete payloadCopy.clearGroup;
       expect(row.payload?.expiresAt).toBeNull();
       const docKeys = Object.keys({
-        ...rest,
+        ...payloadCopy,
         createdAt: 'serverTimestamp',
-        updatedAt: customUpdatedAt ?? 'serverTimestamp',
+        updatedAt: row.payload?.customUpdatedAt ?? 'serverTimestamp',
       });
-      expect(docKeys.length).toBeLessThanOrEqual(15);
+      expect(docKeys.length).toBeLessThanOrEqual(16);
       docKeys.forEach((k) => expect(allowedFirestoreKeys.has(k)).toBe(true));
     }
 
@@ -474,20 +484,119 @@ describe('CSV Importer rich-text parsing, validation, and payload generation', (
         privacy: 'public',
         updatedAtIso: '2026-11-13T12:00:11.000Z',
         status: 'created',
+        group: 'Accessible places',
       },
     ]);
     expect(manifestCsv).toContain('contentFormat');
     expect(manifestCsv).toContain('markdown');
+    expect(manifestCsv).toContain('Accessible places');
   });
 
-  it('enforces Firestore security rule constraints for notes, contentFormat, and expiresAt', () => {
+  it('supports optional group column, batch default precedence, existing-note updates/clearing, and filtered CSV export', () => {
+    const existingNotes: Note[] = [
+      {
+        id: 'upd_replace',
+        type: 'text',
+        content: 'Old 1',
+        contentFormat: 'plain',
+        location: { lat: -34.9, lng: -56.2 },
+        authorId: 'u1',
+        authorName: 'Admin',
+        privacy: 'public',
+        createdAt: mockTimestamp,
+        group: 'Events',
+      },
+      {
+        id: 'upd_clear',
+        type: 'text',
+        content: 'Old 2',
+        contentFormat: 'plain',
+        location: { lat: -34.91, lng: -56.21 },
+        authorId: 'u1',
+        authorName: 'Admin',
+        privacy: 'public',
+        createdAt: mockTimestamp,
+        group: 'Events',
+      },
+      {
+        id: 'upd_preserve',
+        type: 'text',
+        content: 'Old 3',
+        contentFormat: 'plain',
+        location: { lat: -34.92, lng: -56.22 },
+        authorId: 'u1',
+        authorName: 'Admin',
+        privacy: 'public',
+        createdAt: mockTimestamp,
+        group: 'Tourism',
+      },
+    ];
+
+    // 1. Mapped group column: per-row overrides batch, canonical casing reused, empty cell clears on update, invalid >60 errors
+    const csvWithGroup = [
+      'id,content,lat,lng,group',
+      'new_csv_grp,"New row with csv group",-34.905,-56.19,"  events  "',
+      'new_fallback,"New row uses batch default",-34.906,-56.191,"   "',
+      'upd_replace,"Updated replace group",-34.9,-56.2,"Promotions"',
+      'upd_clear,"Updated clear group",-34.91,-56.21,""',
+      `bad_grp,"Too long group",-34.907,-56.192,"${'a'.repeat(61)}"`,
+    ].join('\n');
+
+    const parsed = parseCsv(csvWithGroup);
+    const res = validateAndPrepareNotes(
+      parsed.rows,
+      parsed.headers,
+      autoMapHeaders(parsed.headers),
+      { ...baseDefaults, skipDuplicates: false, group: 'Community announcements' },
+      existingNotes,
+      'admin-uid'
+    );
+
+    expect(res.rows[0].payload?.group).toBe('Events'); // Canonical casing reused from existingNotes
+    expect(res.rows[1].payload?.group).toBe('Community announcements'); // Fallback to batch default for new row
+    expect(res.rows[2].isExistingUpdate).toBe(true);
+    expect(res.rows[2].payload?.group).toBe('Promotions');
+    expect(res.rows[3].isExistingUpdate).toBe(true);
+    expect(res.rows[3].payload?.clearGroup).toBe(true);
+    expect(res.rows[3].payload?.group).toBeUndefined();
+    expect(res.rows[4].status).toBe('error');
+
+    // 2. Omitted group column + empty batch default preserves existing note group on update
+    const csvWithoutGroup = [
+      'id,content,lat,lng',
+      'upd_preserve,"Updated content without touching group",-34.92,-56.22',
+    ].join('\n');
+    const parsedNoGroup = parseCsv(csvWithoutGroup);
+    const resPreserve = validateAndPrepareNotes(
+      parsedNoGroup.rows,
+      parsedNoGroup.headers,
+      autoMapHeaders(parsedNoGroup.headers),
+      { ...baseDefaults, skipDuplicates: false, group: '' },
+      existingNotes,
+      'admin-uid'
+    );
+    expect(resPreserve.rows[0].isExistingUpdate).toBe(true);
+    expect(resPreserve.rows[0].groupDisplay).toBe('Tourism');
+    expect(resPreserve.rows[0].payload?.group).toBeUndefined();
+    expect(resPreserve.rows[0].payload?.clearGroup).toBeUndefined();
+
+    // 3. Export CSV round-trips 14 columns including group
+    const exported = buildNotesExportCsv([existingNotes[0], { ...existingNotes[1], group: undefined }]);
+    const parsedExport = parseCsv(exported);
+    expect(parsedExport.headers).toHaveLength(14);
+    expect(parsedExport.headers[13]).toBe('group');
+    expect(parsedExport.rows[0][13]).toBe('Events');
+    expect(parsedExport.rows[1][13]).toBe('');
+  });
+
+  it('enforces Firestore security rule constraints for notes, contentFormat, expiresAt, and group', () => {
     const rules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
     expect(rules).toContain("isValidId(noteId)");
     expect(rules).toContain("data.contentFormat in ['plain', 'markdown']");
-    expect(rules).toContain("data.keys().size() <= 15");
+    expect(rules).toContain("data.keys().size() <= 16");
     expect(rules).toContain("data.content.size() <= 4000");
     expect(rules).toContain(
-      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'authorName', 'privacy', 'expiresAt'])"
+      "affectedKeys().hasOnly(['content', 'contentFormat', 'audioUrl', 'location', 'updatedAt', 'color', 'emoji', 'language', 'group', 'authorName', 'privacy', 'expiresAt'])"
     );
   });
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdvancedMarker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -17,9 +17,11 @@ import {
   AlertTriangle,
   Layers,
   ArrowLeft,
+  Folder,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Note, SUPPORTED_LANGUAGES } from '../types';
+import { normalizeGroupName } from '../lib/groups';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useMapViewport } from '../hooks/useMapViewport';
 import { getPlainTextExcerpt } from '../lib/richText';
@@ -140,11 +142,32 @@ export const MapMarkers = ({
 
   const isGroupSheetOpen = Boolean(!isCreating && !editingNote && activeGroup && activeGroupNotes.length > 0);
 
+  useEffect(() => {
+    if (!activeGroup || activeGroupNotes.length > 0) return;
+    const timer = setTimeout(() => {
+      setActiveGroup(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeGroup, activeGroupNotes.length]);
+
+  useEffect(() => {
+    if (!lastGroupContext || lastGroupNotes.length > 0) return;
+    const timer = setTimeout(() => {
+      setLastGroupContext(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [lastGroupContext, lastGroupNotes.length]);
+
   // Keep selectedNote synced with latest snapshot updates when available
   const resolvedSelectedNote = useMemo(() => {
     if (!selectedNote) return null;
     return notes.find((n) => n.id === selectedNote.id) ?? selectedNote;
   }, [notes, selectedNote]);
+
+  const selectedNoteGroup = useMemo(
+    () => (resolvedSelectedNote ? normalizeGroupName(resolvedSelectedNote.group) : undefined),
+    [resolvedSelectedNote]
+  );
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -493,6 +516,17 @@ export const MapMarkers = ({
                 </div>
               )}
             </div>
+            {selectedNoteGroup && (
+              <div className="mb-2">
+                <span
+                  data-testid="info-window-group-badge"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-[#0d9488] border border-teal-100 text-[10px] font-bold max-w-full truncate"
+                >
+                  <Folder className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{selectedNoteGroup}</span>
+                </span>
+              </div>
+            )}
             <div className="text-sm text-stone-800 font-medium leading-relaxed">
               <RichTextViewer
                 content={resolvedSelectedNote.content || ''}

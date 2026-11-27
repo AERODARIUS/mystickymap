@@ -1,6 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
-import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  deleteField,
+  doc,
+  serverTimestamp,
+  writeBatch,
+  type DocumentData,
+  type UpdateData,
+} from 'firebase/firestore';
 import {
   Upload,
   FileSpreadsheet,
@@ -31,6 +39,8 @@ import {
   parseCsv,
   validateAndPrepareNotes,
 } from '../lib/csv';
+import { extractAvailableGroups } from '../lib/groups';
+import { GroupCombobox } from './GroupCombobox';
 import { RichTextViewer } from './RichTextViewer';
 
 interface AdminCsvImporterProps {
@@ -69,6 +79,7 @@ export const AdminCsvImporter = ({
     authorName: '',
     updatedAt: '',
     expiresAt: '',
+    group: '',
   });
 
   const [defaults, setDefaults] = useState<ImportDefaults>({
@@ -79,10 +90,16 @@ export const AdminCsvImporter = ({
     emoji: '📍',
     language: 'es-ES',
     authorName: (user?.displayName || 'Admin').slice(0, 100),
+    group: '',
     maxContentLength: 2000,
     skipDuplicates: true,
     batchSize: 20,
   });
+
+  const availableGroupSuggestions = useMemo(
+    () => extractAvailableGroups(existingNotes),
+    [existingNotes]
+  );
 
   const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all');
   const [previewMode, setPreviewMode] = useState<'rendered' | 'raw'>('rendered');
@@ -253,6 +270,7 @@ export const AdminCsvImporter = ({
           lng: number;
           privacy: NotePrivacy;
           updatedAtIso: string;
+          group?: string;
         }> = [];
 
         for (const row of slice) {
@@ -261,15 +279,31 @@ export const AdminCsvImporter = ({
             ? doc(db, 'notes', row.sourceId)
             : doc(notesCollection);
 
-          const { customUpdatedAt, ...restPayload } = payload;
-          const firestoreDoc = {
-            ...restPayload,
-            authorId: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: customUpdatedAt ?? serverTimestamp(),
-          };
+          const { customUpdatedAt, clearGroup, group, ...restPayload } = payload;
 
-          batch.set(docRef, firestoreDoc);
+          if (row.isExistingUpdate) {
+            const updatablePayload: UpdateData<DocumentData> = {
+              ...restPayload,
+              updatedAt: customUpdatedAt ?? serverTimestamp(),
+            };
+            delete updatablePayload.authorId;
+            if (clearGroup) {
+              updatablePayload.group = deleteField();
+            } else if (group !== undefined) {
+              updatablePayload.group = group;
+            }
+            batch.update(docRef, updatablePayload);
+          } else {
+            const firestoreDoc = {
+              ...restPayload,
+              ...(group ? { group } : {}),
+              authorId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: customUpdatedAt ?? serverTimestamp(),
+            };
+            batch.set(docRef, firestoreDoc);
+          }
+
           batchEntries.push({
             rowIndex: row.rowIndex,
             sourceId: row.sourceId || '',
@@ -279,6 +313,7 @@ export const AdminCsvImporter = ({
             lng: payload.location.lng,
             privacy: payload.privacy,
             updatedAtIso: customUpdatedAt ? customUpdatedAt.toDate().toISOString() : 'serverTimestamp',
+            group: clearGroup ? '' : (group ?? row.groupDisplay ?? ''),
           });
         }
 
@@ -448,7 +483,7 @@ export const AdminCsvImporter = ({
             <textarea
               value={rawCsvText}
               onChange={(e) => loadCsvContent(e.target.value, 'csv-pegado.csv')}
-              placeholder="id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt"
+              placeholder="id,content,contentFormat,lat,lng,type,privacy,color,emoji,language,authorName,updatedAt,expiresAt,group"
               rows={6}
               className="w-full p-3 font-mono text-xs bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0d9488]"
             />
@@ -665,6 +700,18 @@ export const AdminCsvImporter = ({
               </select>
             </div>
 
+            <div className="space-y-1">
+              <GroupCombobox
+                id="def-group"
+                compact
+                label="group por defecto (lote)"
+                value={defaults.group || ''}
+                onChange={(val) => setDefaults((d) => ({ ...d, group: val }))}
+                suggestions={availableGroupSuggestions}
+                placeholder="Opcional: grupo para el lote..."
+              />
+            </div>
+
             <div className="sm:col-span-2 lg:col-span-4 flex items-end pt-1">
               <label className="flex items-center gap-2.5 text-xs font-medium text-stone-700 cursor-pointer">
                 <input
@@ -858,6 +905,7 @@ export const AdminCsvImporter = ({
                   <th className="py-2.5 px-3 whitespace-nowrap">ID origen</th>
                   <th className="py-2.5 px-3">Contenido / Formato</th>
                   <th className="py-2.5 px-3 whitespace-nowrap text-right">Coordenadas</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Grupo</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">Privacidad</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">updatedAt</th>
                 </tr>
@@ -927,6 +975,15 @@ export const AdminCsvImporter = ({
                         ? `${row.payload.location.lat.toFixed(5)}, ${row.payload.location.lng.toFixed(5)}`
                         : '—'}
                     </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {row.groupDisplay ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-teal-50 text-[#0d9488] border border-teal-200 text-[11px] font-semibold">
+                          {row.groupDisplay}
+                        </span>
+                      ) : (
+                        <span className="text-stone-400 italic">Sin grupo</span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3 text-stone-700 whitespace-nowrap">
                       {row.payload?.privacy || '—'}
                     </td>
@@ -939,7 +996,7 @@ export const AdminCsvImporter = ({
                 ))}
                 {filteredPreviewRows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-stone-500">
+                    <td colSpan={8} className="py-8 text-center text-stone-500">
                       No hay filas que coincidan con el filtro seleccionado.
                     </td>
                   </tr>

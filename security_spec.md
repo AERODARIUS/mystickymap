@@ -13,6 +13,7 @@
     - When `expiresAt` is set on `create` or modified to a non-null value on `update` by a non-admin, it must be strictly in the future (`> request.time`).
     - Expired notes remain stored and accessible to their owner (`authorId == request.auth.uid`) and admins, and are denied to all other users on `get`, `list`, and comment interactions.
 - **Input Validation**: `content` must be within 1–1000 visible characters (up to 4000 stored Markdown characters for notes) and 1–500 visible characters (up to 1500 stored Markdown characters for comments). Optional `contentFormat` must be `'plain'` or `'markdown'`. `location` must be a valid lat/lng map.
+- **Group Metadata Integrity**: Optional `group` is organizational metadata only (1–60 trimmed single-line characters, omitted when ungrouped). Group membership never grants read/write access to private, unlisted, moderated, or expired notes.
 - **RBAC**: `role` in `/users/{userId}` can only be set by admins.
 
 - **Comment Visibility**: Comments inherit visibility and expiration from their parent note. They cannot be read, listed, or created unless the parent note is `public`/`unlisted`, visible, and not expired, or the requester is the owner/admin.
@@ -23,13 +24,13 @@
 2. **Shadow Field Injection**: `create` note with `isVerified: true` (unauthorized field).
 3. **Privilege Escalation**: `update` own user document with `role: "admin"`.
 4. **Denial of Wallet (ID Injection)**: `create` note with 1.5KB random character string as document ID.
-5. **Denial of Wallet (Payload Size)**: `create` note with `content` size > 4000 chars or comment `content` > 1500 chars.
+5. **Denial of Wallet (Payload Size)**: `create` note with `content` size > 4000 chars, comment `content` > 1500 chars, or `group` > 60 chars / whitespace-only.
 6. **Immutable Field Tampering**: `update` note's `createdAt` to a new timestamp.
 7. **Privacy Leak (List)**: `list` notes without a query filter and see private or expired notes of others.
 8. **Privacy Leak (Get)**: `get` a private or expired note of another user by ID.
 9. **Comment Hijacking**: `create` a comment for a note the user does not have read access to (including expired notes).
 10. **Comment Context Forgery**: `create` a comment with `noteId` that does not match the parent collection's ID.
-11. **Type Poisoning**: `update` `location` with a string instead of a map, or `expiresAt` with a string/number instead of a timestamp/null.
+11. **Type Poisoning**: `update` `location` with a string instead of a map, or `expiresAt` with a string/number instead of a timestamp/null, or `group` with a non-string / null.
 12. **Past Expiration Injection**: `create` or `update` a note with `expiresAt <= request.time`.
 
 ## 3. Test Runner Strategy

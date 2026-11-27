@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
-import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react';
+import { Search, MapPin, Eye, EyeOff, Trash2, AlertCircle, Calendar, CheckCircle2, Download, Folder } from 'lucide-react';
 import { db, logAnalyticsEvent } from '../firebase';
 import { ModerationState, Note, NotePrivacy } from '../types';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
 import { isNoteExpired } from '../lib/expiration';
+import { buildNotesExportCsv } from '../lib/csv';
+import { normalizeGroupName } from '../lib/groups';
 
 interface AdminNotesManagerProps {
   notes: Note[];
@@ -113,6 +115,18 @@ export const AdminNotesManager = ({
     }
   };
 
+  const handleExportCsv = () => {
+    const csv = buildNotesExportCsv(filteredNotes);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'spotheon_notes_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    logAnalyticsEvent('admin_notes_csv_export', { exported_count: filteredNotes.length });
+  };
+
   const formatTs = (ts: Note['createdAt'] | undefined) => {
     if (!ts || typeof ts.toDate !== 'function') return '—';
     return ts.toDate().toISOString().slice(0, 10);
@@ -202,6 +216,16 @@ export const AdminNotesManager = ({
           <span className="text-xs text-stone-500 font-mono tabular-nums px-2">
             {filteredNotes.length} / {notes.length}
           </span>
+
+          <button
+            type="button"
+            disabled={filteredNotes.length === 0}
+            onClick={handleExportCsv}
+            className="px-3 py-2 bg-[#081e2b] hover:bg-[#0e2a38] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 text-[#00a88f]" />
+            Exportar CSV
+          </button>
         </div>
       </div>
 
@@ -244,12 +268,18 @@ export const AdminNotesManager = ({
                       </p>
                       <p className="font-mono text-[11px] text-stone-500">{note.id}</p>
                     </td>
-                    <td className="py-2.5 px-3 max-w-md">
+                    <td className="py-2.5 px-3 max-w-md space-y-1">
                       <p className="text-stone-800 line-clamp-2 break-words">
                         {note.content
                           ? getPlainTextExcerpt(note.content, note.contentFormat, 160)
                           : '(Nota de audio)'}
                       </p>
+                      {normalizeGroupName(note.group) && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-[#0d9488] border border-teal-100 text-[10px] font-semibold">
+                          <Folder className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                          <span>{normalizeGroupName(note.group)}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-mono tabular-nums text-right text-stone-700 whitespace-nowrap">
                       {note.location

@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { auth, googleProvider, signInWithPopup, onAuthStateChanged, db, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from './firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp, deleteField } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 // Components
@@ -25,6 +25,7 @@ import { CommentsView } from './components/CommentsView';
 import { ReportModal } from './components/ReportModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ConsentBanner } from './components/ConsentBanner';
+import { GroupFilterProvider, useGroupFilter } from './context/GroupFilterContext';
 
 // Hooks & Utils
 import { useNotes } from './hooks/useNotes';
@@ -41,6 +42,7 @@ import {
 } from './types';
 import { countVisibleCharacters, markdownToPlainText, validateContentLimits } from './lib/richText';
 import { timestampToCalendarDate, validateExpirationDateInput } from './lib/expiration';
+import { normalizeGroupName, resolveGroupSpelling, validateGroupName } from './lib/groups';
 import { canUserAccessNote } from './lib/notesQuery';
 import {
   DEFAULT_USER_ZOOM,
@@ -64,9 +66,15 @@ const MAP_ID = resolveMapId(
 );
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'undefined' && API_KEY !== '';
 
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+interface AppShellProps {
+  user: User | null;
+  isAuthReady: boolean;
+  notes: Note[];
+  myNotes: Note[];
+  refreshNotes: () => void;
+}
+
+function AppShell({ user, isAuthReady, notes, myNotes, refreshNotes }: AppShellProps) {
   const [view, setView] = useState<'map' | 'ar' | 'anchor' | 'qr'>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
@@ -91,6 +99,7 @@ export default function App() {
   const [draftEmoji, setDraftEmoji] = useState('📝');
   const [draftHasExpiration, setDraftHasExpiration] = useState(false);
   const [draftExpirationDate, setDraftExpirationDate] = useState('');
+  const [draftGroup, setDraftGroup] = useState('');
 
   // Location tracking for note placement
   const [, setOriginalLocation] = useState<{ lat: number, lng: number } | null>(null);
@@ -110,9 +119,25 @@ export default function App() {
   const hasHandledUrlNote = useRef(false);
 
   // Hooks
-  const { notes, myNotes, refresh: refreshNotes } = useNotes(user, isAuthReady);
   const { flags } = useFeatureFlags();
   const { isAdmin } = useAdmin(user);
+  const { availableGroups, filterNotes } = useGroupFilter();
+
+  const filteredMapNotes = useMemo(() => filterNotes(notes), [filterNotes, notes]);
+
+  const isSelectedNoteExcluded = Boolean(
+    view === 'map' && selectedNote && filterNotes([selectedNote]).length === 0
+  );
+  const visibleSelectedNote = isSelectedNoteExcluded ? null : selectedNote;
+
+  // Close open map popup permanently if active group filters exclude the selected note
+  useEffect(() => {
+    if (!isSelectedNoteExcluded) return;
+    const timer = setTimeout(() => {
+      setSelectedNote(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isSelectedNoteExcluded]);
   
   const handlePermissionDenied = useCallback(() => {
     setIsTrackingLocation(false);
@@ -136,6 +161,7 @@ export default function App() {
     setDraftEmoji('📝');
     setDraftHasExpiration(false);
     setDraftExpirationDate('');
+    setDraftGroup('');
     
     const initLoc = userLocation || { lat: 37.42, lng: -122.08 };
     setOriginalLocation(initLoc);
@@ -159,6 +185,7 @@ export default function App() {
       const hasExp = note.expiresAt !== null && note.expiresAt !== undefined;
       setDraftHasExpiration(hasExp);
       setDraftExpirationDate(hasExp ? timestampToCalendarDate(note.expiresAt) : '');
+      setDraftGroup(normalizeGroupName(note.group) || '');
       
       const loc = note.location || { lat: 37.42, lng: -122.08 };
       setOriginalLocation(loc);
@@ -168,6 +195,7 @@ export default function App() {
     } else {
       setDraftHasExpiration(false);
       setDraftExpirationDate('');
+      setDraftGroup('');
       setOriginalLocation(null);
       setCandidateLocation(null);
     }
@@ -186,10 +214,12 @@ export default function App() {
     if (!validation.valid) return;
     const expValidation = validateExpirationDateInput(draftHasExpiration, draftExpirationDate);
     if (!expValidation.valid) return;
+    const groupValidation = validateGroupName(draftGroup);
+    if (!groupValidation.valid) return;
     setPlacementStep('placing_location');
     setView('map');
     logAnalyticsEvent('note_placement_start', { privacy: draftPrivacy });
-  }, [draftContent, draftContentFormat, draftPrivacy, draftHasExpiration, draftExpirationDate]);
+  }, [draftContent, draftContentFormat, draftPrivacy, draftHasExpiration, draftExpirationDate, draftGroup]);
 
   const handleReturnToEditor = useCallback(() => {
     setPlacementStep('editing_content');
@@ -209,6 +239,10 @@ export default function App() {
     if (!validation.valid) return;
     const expValidation = validateExpirationDateInput(draftHasExpiration, draftExpirationDate);
     if (!expValidation.valid) return;
+    const groupValidation = validateGroupName(draftGroup);
+    if (!groupValidation.valid) return;
+
+    const resolvedGroup = resolveGroupSpelling(draftGroup, availableGroups);
 
     const expiresAtValue = expValidation.expiresAtDate
       ? Timestamp.fromDate(expValidation.expiresAtDate)
@@ -227,7 +261,8 @@ export default function App() {
           emoji: draftEmoji,
           language: draftLanguage,
           authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
-          location: candidateLocation
+          location: candidateLocation,
+          group: resolvedGroup ?? deleteField(),
         };
         await updateDoc(doc(db, 'notes', editingNote.id), updates);
         logAnalyticsEvent('note_update', { note_id: editingNote.id, privacy: draftPrivacy, has_expiration: draftHasExpiration });
@@ -245,7 +280,8 @@ export default function App() {
           expiresAt: expiresAtValue,
           color: draftColor,
           emoji: draftEmoji,
-          language: draftLanguage
+          language: draftLanguage,
+          ...(resolvedGroup ? { group: resolvedGroup } : {}),
         };
         const newRef = await addDoc(collection(db, 'notes'), noteData);
         logAnalyticsEvent('note_create', { note_id: newRef.id, privacy: draftPrivacy, has_expiration: draftHasExpiration });
@@ -260,6 +296,7 @@ export default function App() {
       setDraftContentFormat('markdown');
       setDraftHasExpiration(false);
       setDraftExpirationDate('');
+      setDraftGroup('');
     } catch (error) {
       try {
         handleFirestoreError(
@@ -273,7 +310,7 @@ export default function App() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [candidateLocation, editingNote, draftContent, draftContentFormat, draftPrivacy, draftColor, draftEmoji, draftLanguage, draftHasExpiration, draftExpirationDate]);
+  }, [candidateLocation, editingNote, draftContent, draftContentFormat, draftPrivacy, draftColor, draftEmoji, draftLanguage, draftHasExpiration, draftExpirationDate, draftGroup, availableGroups]);
 
   const handleCancelNoteFlow = useCallback(() => {
     setIsCreating(false);
@@ -285,6 +322,7 @@ export default function App() {
     setDraftContentFormat('markdown');
     setDraftHasExpiration(false);
     setDraftExpirationDate('');
+    setDraftGroup('');
     logAnalyticsEvent('note_flow_cancel');
   }, []);
 
@@ -324,19 +362,6 @@ export default function App() {
   useEffect(() => {
     logAnalyticsEvent('screen_view', { firebase_screen: view, screen_name: view });
   }, [view]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (userProfile) => {
-      setUser(userProfile);
-      setIsAuthReady(true);
-      if (userProfile && typeof window !== 'undefined' && typeof window.gtag === 'function') {
-        window.gtag('set', 'user_properties', {
-          user_id: userProfile.uid,
-        });
-      }
-    });
-    return unsubscribe;
-  }, []);
 
   useEffect(() => {
     if (!isAuthReady || hasHandledUrlNote.current) return;
@@ -429,6 +454,237 @@ export default function App() {
     }
   };
 
+  return (
+    <>
+      <div className="relative w-full h-[100dvh] bg-stone-50 font-sans overflow-hidden">
+        {/* Main View */}
+        <div className="absolute inset-0">
+          {view === 'map' ? (
+            <Map
+              defaultCenter={visibleSelectedNote?.location || userLocation || WORLD_VIEW_CENTER}
+              defaultZoom={visibleSelectedNote?.location || userLocation ? DEFAULT_USER_ZOOM : WORLD_VIEW_ZOOM}
+              mapId={MAP_ID}
+              clickableIcons={false}
+              style={{ width: '100%', height: '100%' }}
+              gestureHandling="greedy"
+              disableDefaultUI
+              internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
+            >
+              <MapController 
+                isCreating={isCreating}
+                editingNote={editingNote}
+                placementStep={placementStep}
+                userLocation={userLocation}
+                candidateLocation={candidateLocation}
+                setCandidateLocation={setCandidateLocation}
+                isTrackingLocation={isTrackingLocation}
+                selectedNote={visibleSelectedNote}
+                focusNonce={focusNonce}
+                hasInitiallyPositioned={hasInitiallyPositioned}
+                onInitialPositionComplete={handleInitialPositionComplete}
+                isLocationDenied={isPermissionDenied || isLocationUnavailable}
+              />
+              
+              <MapMarkers 
+                user={user}
+                notes={filteredMapNotes}
+                userLocation={userLocation}
+                isCreating={isCreating}
+                editingNote={editingNote}
+                placementStep={placementStep}
+                draftLocation={candidateLocation}
+                draftColor={draftColor}
+                draftEmoji={draftEmoji}
+                selectedNote={visibleSelectedNote}
+                copyStatus={copyStatus}
+                setDraftLocation={setCandidateLocation}
+                setSelectedNote={setSelectedNote}
+                setEditingNote={handleEditNote}
+                copyToClipboard={copyToClipboard}
+                onGenerateQRCode={(id) => setQrCodeNoteId(id)}
+                onShowComments={setCommentNote}
+                onReportNote={setReportingNote}
+              />
+            </Map>
+          ) : view === 'ar' ? (
+            <ARView 
+              notes={notes} 
+              userLocation={userLocation} 
+              heading={heading} 
+              user={user}
+              setView={handleSetView}
+              setEditingNote={handleEditNote}
+              copyToClipboard={copyToClipboard}
+              copyStatus={copyStatus}
+              onShowComments={setCommentNote}
+              onReportNote={setReportingNote}
+            />
+          ) : view === 'anchor' ? (
+            <AnchorView 
+              notes={notes}
+              myNotes={myNotes}
+              userLocation={userLocation}
+              user={user}
+              setEditingNote={handleEditNote}
+              onFocusNote={handleFocusNote}
+              copyToClipboard={copyToClipboard}
+              copyStatus={copyStatus}
+              onGenerateQRCode={(id) => setQrCodeNoteId(id)}
+              onShowComments={setCommentNote}
+              onReportNote={setReportingNote}
+            />
+          ) : (
+            <QRNotesView 
+              notes={notes}
+              myNotes={myNotes}
+              user={user}
+              copyToClipboard={copyToClipboard}
+              copyStatus={copyStatus}
+              onShowComments={setCommentNote}
+              onReportNote={setReportingNote}
+            />
+          )}
+        </div>
+
+        {(isCreating || editingNote) && placementStep === 'placing_location' && (
+          <LocationPlacement 
+            isCreating={isCreating}
+            editingNote={editingNote}
+            draftColor={draftColor}
+            draftEmoji={draftEmoji}
+            draftContent={draftContent}
+            candidateLocation={candidateLocation}
+            onEditNote={handleReturnToEditor}
+            onConfirmLocation={handleConfirmPlacement}
+            onCancel={handleCancelNoteFlow}
+            isSubmitting={isSubmitting}
+          />
+        )}
+
+        <NavigationUI 
+          user={user}
+          view={view}
+          isTrackingLocation={isTrackingLocation}
+          isPermissionDenied={isPermissionDenied}
+          isCreating={isCreating}
+          editingNote={editingNote}
+          placementStep={placementStep}
+          draftLocation={candidateLocation}
+          draftColor={draftColor}
+          draftEmoji={draftEmoji}
+          draftContent={draftContent}
+          draftContentFormat={draftContentFormat}
+          draftLanguage={draftLanguage}
+          draftPrivacy={draftPrivacy}
+          draftHasExpiration={draftHasExpiration}
+          draftExpirationDate={draftExpirationDate}
+          draftGroup={draftGroup}
+          availableGroups={availableGroups}
+          setView={handleSetView}
+          setIsTrackingLocation={handleToggleTracking}
+          onStartCreate={handleStartCreate}
+          onCancelNoteFlow={handleCancelNoteFlow}
+          setDraftColor={setDraftColor}
+          setDraftEmoji={setDraftEmoji}
+          setDraftContent={setDraftContent}
+          setDraftContentFormat={setDraftContentFormat}
+          setDraftLanguage={setDraftLanguage}
+          setDraftPrivacy={setDraftPrivacy}
+          setDraftHasExpiration={setDraftHasExpiration}
+          setDraftExpirationDate={setDraftExpirationDate}
+          setDraftGroup={setDraftGroup}
+          onProceedToPlacement={handleProceedToPlacement}
+          handleLogin={handleLogin}
+          handleLogout={handleLogout}
+          heading={heading}
+          isAdmin={isAdmin && flags.enableAdminHub}
+          onOpenAdmin={() => {
+            logAnalyticsEvent('admin_view');
+            setShowAdminHub(true);
+          }}
+          onOpenCookieConsent={() => setIsCookieConsentOpen(true)}
+        />
+
+        {/* Login Error Toast */}
+        {loginError && (
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-xs px-4 z-[70]">
+            <div className="bg-red-600 text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 text-sm">
+              <div className="flex-1">
+                <p className="font-bold">Authentication Error</p>
+                <p className="opacity-90 text-xs mt-1">{loginError}</p>
+              </div>
+              <button 
+                onClick={() => setLoginError(null)}
+                className="p-1 hover:bg-white/10 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <QRCodeDisplay 
+        noteId={qrCodeNoteId || ''} 
+        isOpen={!!qrCodeNoteId} 
+        onClose={() => setQrCodeNoteId(null)} 
+      />
+      <CommentsView
+        note={commentNote}
+        isOpen={!!commentNote}
+        user={user}
+        onClose={() => setCommentNote(null)}
+        onEditNote={handleEditNote}
+        onReportComment={(c) => setReportingComment(c)}
+        onReportNote={(n) => setReportingNote(n)}
+      />
+      <ReportModal
+        note={reportingNote || (reportingComment ? commentNote : null)}
+        comment={reportingComment}
+        user={user}
+        onClose={() => {
+          setReportingNote(null);
+          setReportingComment(null);
+        }}
+      />
+      {showAdminHub && (
+        <AdminDashboard
+          user={user}
+          onClose={() => setShowAdminHub(false)}
+          onFocusNote={(note) => {
+            handleFocusNote(note);
+            setShowAdminHub(false);
+          }}
+        />
+      )}
+      <InstallPrompt />
+      <ConsentBanner 
+        isOpenManually={isCookieConsentOpen} 
+        onCloseManual={() => setIsCookieConsentOpen(false)} 
+      />
+    </>
+  );
+}
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const { notes, myNotes, refresh: refreshNotes } = useNotes(user, isAuthReady);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (userProfile) => {
+      setUser(userProfile);
+      setIsAuthReady(true);
+      if (userProfile && typeof window !== 'undefined' && typeof window.gtag === 'function') {
+        window.gtag('set', 'user_properties', {
+          user_id: userProfile.uid,
+        });
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   if (!hasValidKey) return <SplashScreen />;
 
   if (!isAuthReady) {
@@ -442,209 +698,15 @@ export default function App() {
   return (
     <ErrorBoundary>
       <APIProvider apiKey={API_KEY} version="weekly">
-        <div className="relative w-full h-[100dvh] bg-stone-50 font-sans overflow-hidden">
-          {/* Main View */}
-          <div className="absolute inset-0">
-            {view === 'map' ? (
-              <Map
-                defaultCenter={selectedNote?.location || userLocation || WORLD_VIEW_CENTER}
-                defaultZoom={selectedNote?.location || userLocation ? DEFAULT_USER_ZOOM : WORLD_VIEW_ZOOM}
-                mapId={MAP_ID}
-                clickableIcons={false}
-                style={{ width: '100%', height: '100%' }}
-                gestureHandling="greedy"
-                disableDefaultUI
-                internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
-              >
-                <MapController 
-                  isCreating={isCreating}
-                  editingNote={editingNote}
-                  placementStep={placementStep}
-                  userLocation={userLocation}
-                  candidateLocation={candidateLocation}
-                  setCandidateLocation={setCandidateLocation}
-                  isTrackingLocation={isTrackingLocation}
-                  selectedNote={selectedNote}
-                  focusNonce={focusNonce}
-                  hasInitiallyPositioned={hasInitiallyPositioned}
-                  onInitialPositionComplete={handleInitialPositionComplete}
-                  isLocationDenied={isPermissionDenied || isLocationUnavailable}
-                />
-                
-                <MapMarkers 
-                  user={user}
-                  notes={notes}
-                  userLocation={userLocation}
-                  isCreating={isCreating}
-                  editingNote={editingNote}
-                  placementStep={placementStep}
-                  draftLocation={candidateLocation}
-                  draftColor={draftColor}
-                  draftEmoji={draftEmoji}
-                  selectedNote={selectedNote}
-                  copyStatus={copyStatus}
-                  setDraftLocation={setCandidateLocation}
-                  setSelectedNote={setSelectedNote}
-                  setEditingNote={handleEditNote}
-                  copyToClipboard={copyToClipboard}
-                  onGenerateQRCode={(id) => setQrCodeNoteId(id)}
-                  onShowComments={setCommentNote}
-                  onReportNote={setReportingNote}
-                />
-              </Map>
-            ) : view === 'ar' ? (
-              <ARView 
-                notes={notes} 
-                userLocation={userLocation} 
-                heading={heading} 
-                user={user}
-                setView={handleSetView}
-                setEditingNote={handleEditNote}
-                copyToClipboard={copyToClipboard}
-                copyStatus={copyStatus}
-                onShowComments={setCommentNote}
-                onReportNote={setReportingNote}
-              />
-            ) : view === 'anchor' ? (
-              <AnchorView 
-                notes={notes}
-                myNotes={myNotes}
-                userLocation={userLocation}
-                user={user}
-                setEditingNote={handleEditNote}
-                onFocusNote={handleFocusNote}
-                copyToClipboard={copyToClipboard}
-                copyStatus={copyStatus}
-                onGenerateQRCode={(id) => setQrCodeNoteId(id)}
-                onShowComments={setCommentNote}
-                onReportNote={setReportingNote}
-              />
-            ) : (
-              <QRNotesView 
-                notes={notes}
-                myNotes={myNotes}
-                user={user}
-                copyToClipboard={copyToClipboard}
-                copyStatus={copyStatus}
-                onShowComments={setCommentNote}
-                onReportNote={setReportingNote}
-              />
-            )}
-          </div>
-
-          {(isCreating || editingNote) && placementStep === 'placing_location' && (
-            <LocationPlacement 
-              isCreating={isCreating}
-              editingNote={editingNote}
-              draftColor={draftColor}
-              draftEmoji={draftEmoji}
-              draftContent={draftContent}
-              candidateLocation={candidateLocation}
-              onEditNote={handleReturnToEditor}
-              onConfirmLocation={handleConfirmPlacement}
-              onCancel={handleCancelNoteFlow}
-              isSubmitting={isSubmitting}
-            />
-          )}
-
-          <NavigationUI 
+        <GroupFilterProvider notes={notes} myNotes={myNotes}>
+          <AppShell
             user={user}
-            view={view}
-            isTrackingLocation={isTrackingLocation}
-            isPermissionDenied={isPermissionDenied}
-            isCreating={isCreating}
-            editingNote={editingNote}
-            placementStep={placementStep}
-            draftLocation={candidateLocation}
-            draftColor={draftColor}
-            draftEmoji={draftEmoji}
-            draftContent={draftContent}
-            draftContentFormat={draftContentFormat}
-            draftLanguage={draftLanguage}
-            draftPrivacy={draftPrivacy}
-            draftHasExpiration={draftHasExpiration}
-            draftExpirationDate={draftExpirationDate}
-            setView={handleSetView}
-            setIsTrackingLocation={handleToggleTracking}
-            onStartCreate={handleStartCreate}
-            onCancelNoteFlow={handleCancelNoteFlow}
-            setDraftColor={setDraftColor}
-            setDraftEmoji={setDraftEmoji}
-            setDraftContent={setDraftContent}
-            setDraftContentFormat={setDraftContentFormat}
-            setDraftLanguage={setDraftLanguage}
-            setDraftPrivacy={setDraftPrivacy}
-            setDraftHasExpiration={setDraftHasExpiration}
-            setDraftExpirationDate={setDraftExpirationDate}
-            onProceedToPlacement={handleProceedToPlacement}
-            handleLogin={handleLogin}
-            handleLogout={handleLogout}
-            heading={heading}
-            isAdmin={isAdmin && flags.enableAdminHub}
-            onOpenAdmin={() => {
-              logAnalyticsEvent('admin_view');
-              setShowAdminHub(true);
-            }}
-            onOpenCookieConsent={() => setIsCookieConsentOpen(true)}
+            isAuthReady={isAuthReady}
+            notes={notes}
+            myNotes={myNotes}
+            refreshNotes={refreshNotes}
           />
-
-          {/* Login Error Toast */}
-          {loginError && (
-            <div className="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-xs px-4 z-[70]">
-              <div className="bg-red-600 text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 text-sm">
-                <div className="flex-1">
-                  <p className="font-bold">Authentication Error</p>
-                  <p className="opacity-90 text-xs mt-1">{loginError}</p>
-                </div>
-                <button 
-                  onClick={() => setLoginError(null)}
-                  className="p-1 hover:bg-white/10 rounded-lg"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <QRCodeDisplay 
-          noteId={qrCodeNoteId || ''} 
-          isOpen={!!qrCodeNoteId} 
-          onClose={() => setQrCodeNoteId(null)} 
-        />
-        <CommentsView
-          note={commentNote}
-          isOpen={!!commentNote}
-          user={user}
-          onClose={() => setCommentNote(null)}
-          onEditNote={handleEditNote}
-          onReportComment={(c) => setReportingComment(c)}
-          onReportNote={(n) => setReportingNote(n)}
-        />
-        <ReportModal
-          note={reportingNote || (reportingComment ? commentNote : null)}
-          comment={reportingComment}
-          user={user}
-          onClose={() => {
-            setReportingNote(null);
-            setReportingComment(null);
-          }}
-        />
-        {showAdminHub && (
-          <AdminDashboard
-            user={user}
-            onClose={() => setShowAdminHub(false)}
-            onFocusNote={(note) => {
-              handleFocusNote(note);
-              setShowAdminHub(false);
-            }}
-          />
-        )}
-        <InstallPrompt />
-        <ConsentBanner 
-          isOpenManually={isCookieConsentOpen} 
-          onCloseManual={() => setIsCookieConsentOpen(false)} 
-        />
+        </GroupFilterProvider>
       </APIProvider>
     </ErrorBoundary>
   );

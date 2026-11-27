@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, FileText, Layers, Link, Lock, Search, X } from 'lucide-react';
+import { ChevronRight, FileText, Folder, Layers, Link, Lock, Search, X } from 'lucide-react';
 import { Note } from '../types';
+import { normalizeGroupName } from '../lib/groups';
 import { getPlainTextExcerpt, markdownToPlainText } from '../lib/richText';
 
 interface ClusterNotesSheetProps {
@@ -254,6 +255,7 @@ export const ClusterNotesSheet: React.FC<ClusterNotesSheetProps> = ({
                   note.createdAt && typeof note.createdAt.toDate === 'function'
                     ? note.createdAt.toDate().toLocaleDateString()
                     : null;
+                const noteGroup = normalizeGroupName(note.group);
 
                 return (
                   <li key={note.id}>
@@ -300,6 +302,18 @@ export const ClusterNotesSheet: React.FC<ClusterNotesSheetProps> = ({
                             )}
                           </div>
                         </div>
+
+                        {noteGroup && (
+                          <div className="mb-1">
+                            <span
+                              data-testid={`cluster-note-group-${note.id}`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-[#0d9488] text-[10px] font-bold max-w-full truncate"
+                            >
+                              <Folder className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                              <span className="truncate">{noteGroup}</span>
+                            </span>
+                          </div>
+                        )}
 
                         <p className="text-sm text-stone-700 leading-snug line-clamp-2 break-words">
                           {excerpt}

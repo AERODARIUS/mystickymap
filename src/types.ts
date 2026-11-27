@@ -39,6 +39,7 @@ export const MAX_NOTE_LENGTH = 1000;
 export const MAX_COMMENT_LENGTH = 500;
 export const MAX_NOTE_STORAGE_LENGTH = 4000;
 export const MAX_COMMENT_STORAGE_LENGTH = 1500;
+export const MAX_GROUP_LENGTH = 60;
 
 export type ContentFormat = 'plain' | 'markdown';
 
@@ -72,6 +73,7 @@ export interface Note {
   color?: string;
   emoji?: string;
   language?: string;
+  group?: string;
   moderationState?: ModerationState;
 }
 

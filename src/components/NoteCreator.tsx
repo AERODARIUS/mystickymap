@@ -3,7 +3,7 @@ import { X, Languages, Mic, Square, Send, Smile, Info, Globe, Link, Lock, Calend
 import { useTranslation } from 'react-i18next';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { db, auth, handleFirestoreError, OperationType, serverTimestamp, logAnalyticsEvent } from '../firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp, deleteField } from 'firebase/firestore';
 import {
   ContentFormat,
   MAX_NOTE_LENGTH,
@@ -22,6 +22,9 @@ import {
   timestampToCalendarDate,
   validateExpirationDateInput,
 } from '../lib/expiration';
+import { normalizeGroupName, resolveGroupSpelling, validateGroupName } from '../lib/groups';
+import { useGroupFilter } from '../context/GroupFilterContext';
+import { GroupCombobox } from './GroupCombobox';
 
 const LazyRichTextEditor = lazy(() => import('./RichTextEditor'));
 
@@ -49,6 +52,9 @@ export const NoteCreator = ({
   setHasExpiration: propSetHasExpiration,
   expirationDate: propExpirationDate,
   setExpirationDate: propSetExpirationDate,
+  group: propGroup,
+  setGroup: propSetGroup,
+  availableGroups: propAvailableGroups,
   onProceedToPlacement
 }: {
   draftLocation: { lat: number, lng: number } | null,
@@ -70,10 +76,15 @@ export const NoteCreator = ({
   setHasExpiration?: (hasExpiration: boolean) => void,
   expirationDate?: string,
   setExpirationDate?: (date: string) => void,
+  group?: string,
+  setGroup?: (group: string) => void,
+  availableGroups?: string[],
   onProceedToPlacement?: () => void
 }) => {
   const { t } = useTranslation();
   const { flags } = useFeatureFlags();
+  const { availableGroups: contextAvailableGroups } = useGroupFilter();
+  const availableGroups = propAvailableGroups ?? contextAvailableGroups;
   const [localContent, setLocalContent] = useState(editingNote?.content || '');
   const [localContentFormat, setLocalContentFormat] = useState<ContentFormat>(
     editingNote ? (editingNote.contentFormat || 'plain') : 'markdown'
@@ -85,6 +96,9 @@ export const NoteCreator = ({
   );
   const [localExpirationDate, setLocalExpirationDate] = useState<string>(
     () => (editingNote?.expiresAt ? timestampToCalendarDate(editingNote.expiresAt) : '')
+  );
+  const [localGroup, setLocalGroup] = useState<string>(
+    () => normalizeGroupName(editingNote?.group) || ''
   );
   const [expirationTouched, setExpirationTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +144,12 @@ export const NoteCreator = ({
   const setExpirationDate = (val: string) => {
     if (propSetExpirationDate) propSetExpirationDate(val);
     else setLocalExpirationDate(val);
+  };
+
+  const group = propGroup !== undefined ? propGroup : localGroup;
+  const setGroup = (val: string) => {
+    if (propSetGroup) propSetGroup(val);
+    else setLocalGroup(val);
   };
 
   const maxNoteLength = flags.maxNoteLength >= MAX_NOTE_LENGTH ? flags.maxNoteLength : MAX_NOTE_LENGTH;
@@ -274,6 +294,7 @@ export const NoteCreator = ({
 
   const todayCalendarDate = getTodayCalendarDate();
   const expirationValidation = validateExpirationDateInput(hasExpiration, expirationDate);
+  const groupValidation = validateGroupName(group);
   const isEditingExpiredNote = Boolean(editingNote && isNoteExpired(editingNote));
   const showExpirationError =
     hasExpiration &&
@@ -283,6 +304,7 @@ export const NoteCreator = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validation.valid) return;
+    if (!groupValidation.valid) return;
     if (!expirationValidation.valid) {
       setExpirationTouched(true);
       return;
@@ -298,6 +320,7 @@ export const NoteCreator = ({
     const expiresAtValue = expirationValidation.expiresAtDate
       ? Timestamp.fromDate(expirationValidation.expiresAtDate)
       : null;
+    const resolvedGroup = resolveGroupSpelling(group, availableGroups);
 
     setIsSubmitting(true);
     try {
@@ -311,6 +334,7 @@ export const NoteCreator = ({
           color,
           emoji,
           language,
+          group: resolvedGroup ?? deleteField(),
           authorName: (auth.currentUser.displayName || 'Explorer').substring(0, 100),
           location: draftLocation
         };
@@ -329,7 +353,8 @@ export const NoteCreator = ({
           expiresAt: expiresAtValue,
           color,
           emoji,
-          language
+          language,
+          ...(resolvedGroup ? { group: resolvedGroup } : {}),
         };
         await addDoc(collection(db, 'notes'), noteData);
       }
@@ -592,6 +617,19 @@ export const NoteCreator = ({
             {getPrivacyConfig(privacy).desc}
           </p>
 
+          {/* Row 2.5: Optional Group */}
+          <div className="px-1 pt-2 border-t border-stone-100">
+            <GroupCombobox
+              id="note-group-input"
+              label={t('groups.label', 'Group (optional)')}
+              value={group}
+              onChange={setGroup}
+              suggestions={availableGroups}
+              placeholder={t('groups.placeholder', 'Select or type a group...')}
+              helperText={t('groups.optional_hint', 'Organize this note into an existing or custom group.')}
+            />
+          </div>
+
           {/* Row 3: Optional Expiration */}
           <div className="px-1 pt-2 border-t border-stone-100 space-y-2.5">
             {isEditingExpiredNote && (
@@ -677,7 +715,7 @@ export const NoteCreator = ({
 
         <button
           type="submit"
-          disabled={isSubmitting || !validation.valid || (hasExpiration && expirationDate.trim() !== '' && !expirationValidation.valid)}
+          disabled={isSubmitting || !validation.valid || !groupValidation.valid || (hasExpiration && expirationDate.trim() !== '' && !expirationValidation.valid)}
           className="w-fit px-10 py-3.5 bg-[#081e2b] text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#0e2a38] disabled:opacity-50 disabled:cursor-not-allowed transition-all mx-auto shadow-lg active:scale-95 border border-[#0d9488]/40"
         >
           {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-[#00a88f] rounded-full animate-spin" /> : <Send className="w-5 h-5 text-[#00a88f]" />}

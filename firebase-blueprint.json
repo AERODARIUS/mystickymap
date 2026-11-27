@@ -67,6 +67,13 @@
           "type": "string",
           "description": "The language code of the note (e.g., 'en-US', 'es-ES')."
         },
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "pattern": "^\\S(.*\\S)?$",
+          "description": "Optional organizational group name for the note (1 to 60 trimmed characters)."
+        },
         "moderationState": {
           "type": "string",
           "enum": ["visible", "pending_review", "removed"],
