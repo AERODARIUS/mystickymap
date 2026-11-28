@@ -354,6 +354,7 @@ export const NoteCreator = ({
           color,
           emoji,
           language,
+          moderationState: 'visible',
           ...(resolvedGroup ? { group: resolvedGroup } : {}),
         };
         await addDoc(collection(db, 'notes'), noteData);

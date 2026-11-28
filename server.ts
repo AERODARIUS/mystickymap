@@ -47,7 +47,7 @@ async function startServer() {
 
   // API routes
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', serverTimeMs: Date.now() });
   });
 
   // Vite middleware for development

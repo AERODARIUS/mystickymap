@@ -281,6 +281,7 @@ function AppShell({ user, isAuthReady, notes, myNotes, refreshNotes }: AppShellP
           color: draftColor,
           emoji: draftEmoji,
           language: draftLanguage,
+          moderationState: 'visible',
           ...(resolvedGroup ? { group: resolvedGroup } : {}),
         };
         const newRef = await addDoc(collection(db, 'notes'), noteData);
